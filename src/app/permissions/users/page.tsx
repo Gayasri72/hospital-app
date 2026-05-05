@@ -327,8 +327,17 @@ export default function UsersPage() {
         ...u,
         role: typeof u.role === "object" ? u.role.name : u.role
       }));
-      setUsers(normalized);
-      setMeta(res.data.meta ?? { total: res.data.data.length, page: 1, limit: 10 });
+
+      const filtered = normalized.filter((u: any) => {
+        if (currentUser.role === "Hospital Admin") {
+          // Hide Super Admins and other Hospital Admins (except self)
+          return u.role !== "Super Admin" && (u.role !== "Hospital Admin" || u.user_id === currentUser.user_id);
+        }
+        return true;
+      });
+
+      setUsers(filtered);
+      setMeta(res.data.meta ?? { total: filtered.length, page: 1, limit: 10 });
     } catch (err: unknown) {
       toast.error(getErrorMessage(err));
     } finally {
@@ -351,7 +360,7 @@ export default function UsersPage() {
   useEffect(() => { setPage(1); }, [search, roleFilter]);
 
   const viewableRoles = currentUser?.role === "Super Admin" ? ALL_ROLES
-    : currentUser?.role === "Hospital Admin" ? ALL_ROLES.filter((r) => r !== "Super Admin")
+    : currentUser?.role === "Hospital Admin" ? ALL_ROLES.filter((r) => !["Super Admin", "Hospital Admin"].includes(r))
     : ALL_ROLES.filter((r) => !["Super Admin", "Hospital Admin"].includes(r));
 
   const totalPages = Math.ceil(meta.total / meta.limit);
