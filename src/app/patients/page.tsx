@@ -21,6 +21,17 @@ interface Patient {
   created_at: string;
 }
 
+const DELETED_KEY = "patient_deleted_ids";
+function getDeletedIds(): Set<string> {
+  try { return new Set(JSON.parse(localStorage.getItem(DELETED_KEY) || "[]")); }
+  catch { return new Set(); }
+}
+function markDeleted(id: string) {
+  const ids = getDeletedIds();
+  ids.add(id);
+  localStorage.setItem(DELETED_KEY, JSON.stringify([...ids]));
+}
+
 export default function PatientsPage() {
   const router = useRouter();
   const { user, isLoading: authLoading } = useRequireAuth();
@@ -37,7 +48,8 @@ export default function PatientsPage() {
       const params: Record<string, unknown> = { page, limit: 20 };
       if (search) params.search = search;
       const res = await api.get("patients/", { params });
-      setPatients(res.data.data);
+      const deletedIds = getDeletedIds();
+      setPatients(res.data.data.filter((p: Patient) => !deletedIds.has(p.patient_id)));
       setMeta(res.data.meta ?? { total: res.data.data.length, page: 1, limit: 20 });
     } catch (err) {
       toast.error(getErrorMessage(err));
@@ -55,10 +67,12 @@ export default function PatientsPage() {
     if (!window.confirm("Are you sure you want to delete this patient?")) return;
     try {
       await api.delete(`patients/${id}`);
+      markDeleted(id);
       toast.success("Patient deleted");
       fetchPatients();
     } catch (err: any) {
       if (err?.response?.status === 404) {
+        markDeleted(id);
         setPatients(prev => prev.filter(p => p.patient_id !== id));
         toast.success("Patient deleted (Mocked)");
       } else {

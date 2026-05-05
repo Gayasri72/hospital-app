@@ -30,6 +30,15 @@ interface Session {
   doctor: { name: string };
 }
 
+function getDeletedDoctorIds(): Set<string> {
+  try { return new Set(JSON.parse(localStorage.getItem("doctor_deleted_ids") || "[]")); }
+  catch { return new Set(); }
+}
+function getDeletedPatientIds(): Set<string> {
+  try { return new Set(JSON.parse(localStorage.getItem("patient_deleted_ids") || "[]")); }
+  catch { return new Set(); }
+}
+
 const STATUS_STYLES: Record<string, string> = {
   Booked:    "bg-blue-100 text-blue-700",
   Confirmed: "bg-indigo-100 text-indigo-700",
@@ -57,15 +66,22 @@ function CreateAppointmentModal({ onClose, onSaved }: { onClose: () => void; onS
 
   // Load patients
   useEffect(() => {
-    api.get("patients", { params: { search: patientSearch, limit: 10 } })
-      .then((r) => setPatients(r.data.data)).catch(() => {});
+    api.get("patients", { params: { search: patientSearch, limit: 20 } })
+      .then((r) => {
+        const deletedIds = getDeletedPatientIds();
+        setPatients(r.data.data.filter((p: Patient) => !deletedIds.has(p.patient_id)));
+      }).catch(() => {});
   }, [patientSearch]);
 
   // Load doctors
   useEffect(() => {
     if (step >= 2) {
-      api.get("doctors", { params: { search: doctorSearch, limit: 10 } })
-        .then((r) => setDoctors(r.data.data)).catch(() => {});
+      api.get("doctors", { params: { search: doctorSearch, limit: 20 } })
+        .then((r) => {
+          const deletedIds = getDeletedDoctorIds();
+          const filtered = r.data.data.filter((d: Doctor) => !deletedIds.has(d.doctor_id));
+          setDoctors(filtered);
+        }).catch(() => {});
     }
   }, [step, doctorSearch]);
 
@@ -268,10 +284,9 @@ export default function AppointmentsPage() {
   const router = useRouter();
   const { user, isLoading: authLoading } = useRequireAuth();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [dateFilter, setDateFilter] = useState(dayjs().format("YYYY-MM-DD"));
+  const [dateFilter, setDateFilter] = useState(""); // Show all by default
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState({ total: 0, page: 1, limit: 20 });
   const [modalOpen, setModalOpen] = useState(false);
@@ -285,20 +300,17 @@ export default function AppointmentsPage() {
       if (dateFilter) params.date = dateFilter;
       
       const res = await api.get("appointments/", { params });
-      setAppointments(res.data.data);
+      
+      // Ensure we match statuses correctly regardless of case from backend
+      const normalized = res.data.data.map((a: any) => {
+        // Find matching status from our list to ensure correct styling
+        const statusMatch = ALL_STATUSES.find(s => s.toLowerCase() === a.status?.toLowerCase()) || a.status;
+        return { ...a, status: statusMatch };
+      });
+
+      setAppointments(normalized);
       setMeta(res.data.meta ?? { total: res.data.data.length, page: 1, limit: 20 });
     } catch (err: any) {
-      if (err?.response?.status === 422 && statusFilter) {
-        // Fallback: Fetch all and filter client-side if status filtering fails
-        try {
-          const res = await api.get("appointments", { params: { page: 1, limit: 100, date: dateFilter } });
-          const all = res.data.data as Appointment[];
-          const filtered = all.filter(a => a.status === statusFilter);
-          setAppointments(filtered);
-          setMeta({ total: filtered.length, page: 1, limit: 100 });
-          return;
-        } catch {}
-      }
       toast.error(getErrorMessage(err));
     } finally {
       setLoading(false);
