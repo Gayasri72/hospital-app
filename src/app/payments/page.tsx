@@ -146,7 +146,7 @@ function PaymentFormModal({ payment, onClose, onPaid }: {
   async function handlePay() {
     setLoading(true);
     try {
-      await api.post(`payments/${payment.payment_id}/transactions`, {
+      await api.post(`payments/${payment.payment_id}/transactions/`, {
         method: method.toLowerCase(), 
         amount: payment.total_amount,
       });

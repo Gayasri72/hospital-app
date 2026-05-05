@@ -98,7 +98,7 @@ function CreateAppointmentModal({ onClose, onSaved }: { onClose: () => void; onS
     if (!selectedPatient || !selectedDoctor || !selectedSession) return;
     setLoading(true);
     try {
-      await api.post("appointments", {
+      await api.post("appointments/", {
         patient_id: selectedPatient.patient_id,
         doctor_id:  selectedDoctor.doctor_id,
         session_id: selectedSession.session_id,
@@ -339,15 +339,20 @@ export default function AppointmentsPage() {
 
   async function handleStatusChange(id: string, newStatus: string, apt: Appointment) {
     try {
-      await api.patch(`appointments/${id}/status`, { status: newStatus.toLowerCase() });
+      await api.patch(`appointments/${id}/status/`, { status: newStatus.toLowerCase() });
       toast.success(`Status updated to ${newStatus}`);
       
       // Auto-create payment if completed
       if (newStatus === "Completed" && apt.status !== "Completed") {
-        await api.post("payments", {
-          appointment_id: id,
-        }).catch(() => {});
-        toast.success("Payment invoice automatically generated!");
+        try {
+          await api.post("payments/", {
+            appointment_id: id,
+          });
+          toast.success("Payment invoice automatically generated!");
+        } catch (paymentErr) {
+          console.error("Failed to generate payment:", paymentErr);
+          toast.error("Status updated, but payment generation failed.");
+        }
       }
       fetchAppointments();
     } catch (err: any) {
