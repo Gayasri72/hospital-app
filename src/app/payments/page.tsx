@@ -153,8 +153,7 @@ function PaymentFormModal({ payment, onClose, onPaid }: {
     setLoading(true);
     try {
       const payload: Record<string, any> = {
-        method: method, // Original: "Cash"
-        payment_method: method.toLowerCase(), // Lowercase: "cash"
+        method: method.toLowerCase(), // Must be lowercase for backend validation
         amount: Number(payment.total_amount),
         hospital_id: user?.hospital_id,
         payment_id: payment.payment_id,
