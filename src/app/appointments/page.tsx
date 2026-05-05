@@ -284,6 +284,7 @@ export default function AppointmentsPage() {
   const router = useRouter();
   const { user, isLoading: authLoading } = useRequireAuth();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [dateFilter, setDateFilter] = useState(""); // Show all by default
