@@ -29,11 +29,16 @@ interface Doctor {
 }
 
 const STATUS_STYLES: Record<string, string> = {
-  Open:      "bg-green-100 text-green-700",
-  Full:      "bg-orange-100 text-orange-700",
-  Closed:    "bg-gray-100 text-gray-600",
-  Completed: "bg-blue-100 text-blue-700",
+  open:      "bg-green-100 text-green-700",
+  full:      "bg-orange-100 text-orange-700",
+  closed:    "bg-gray-100 text-gray-600",
+  completed: "bg-blue-100 text-blue-700",
+  scheduled: "bg-purple-100 text-purple-700",
 };
+
+function getStatusStyle(status: string) {
+  return STATUS_STYLES[status.toLowerCase()] || "bg-gray-100 text-gray-600";
+}
 
 // ─── Create Session Modal ────────────────────────────────
 function getDeletedDoctorIds(): Set<string> {
@@ -211,7 +216,8 @@ function CalendarView({ sessions, onDayClick }: {
   const today = dayjs().format("YYYY-MM-DD");
 
   const sessionsByDate = sessions.reduce<Record<string, Session[]>>((acc, s) => {
-    const d = s.date?.substring(0, 10) || "unknown";
+    if (!s.date) return acc;
+    const d = dayjs(s.date).format("YYYY-MM-DD");
     if (!acc[d]) acc[d] = [];
     acc[d].push(s);
     return acc;
@@ -264,8 +270,8 @@ function CalendarView({ sessions, onDayClick }: {
               <div className="space-y-0.5">
                 {daySessions.slice(0, 2).map((s) => (
                   <div key={s.session_id}
-                    className={cn("text-xs px-1 py-0.5 rounded truncate font-medium", STATUS_STYLES[s.status] ?? "bg-gray-100 text-gray-600")}>
-                    {s.doctor.name.split(" ")[1] ?? s.doctor.name}
+                    className={cn("text-[10px] px-1 py-0.5 rounded truncate font-bold leading-tight", getStatusStyle(s.status))}>
+                    {s.doctor.name}
                   </div>
                 ))}
                 {daySessions.length > 2 && (
@@ -297,7 +303,7 @@ function SessionCard({ session, onDelete }: { session: Session, onDelete: (id: s
           <p className="text-sm text-blue-600">{session.doctor.specialization}</p>
         </div>
         <div className="flex flex-col items-end gap-2">
-          <span className={cn("text-xs px-2.5 py-1 rounded-full font-medium", STATUS_STYLES[session.status] ?? "bg-gray-100 text-gray-600")}>
+          <span className={cn("text-xs px-2.5 py-1 rounded-full font-medium capitalize", getStatusStyle(session.status))}>
             {session.status}
           </span>
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
