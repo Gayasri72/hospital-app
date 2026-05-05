@@ -152,16 +152,19 @@ function PaymentFormModal({ payment, onClose, onPaid }: {
   async function handlePay() {
     setLoading(true);
     try {
-      // Try with both 'method' and 'payment_method' just in case
-      const payload = {
-        method: method,
-        payment_method: method, 
+      const payload: Record<string, any> = {
+        method: method, // Original: "Cash"
+        payment_method: method.toLowerCase(), // Lowercase: "cash"
         amount: Number(payment.total_amount),
         hospital_id: user?.hospital_id,
-        branch_id: user?.branch_id,
         payment_id: payment.payment_id,
         date: dayjs().toISOString(),
       };
+      
+      // Only add branch_id if it exists
+      if (user?.branch_id) {
+        payload.branch_id = user.branch_id;
+      }
       
       console.log("Sending payment payload:", payload);
       await api.post(`payments/${payment.payment_id}/transactions/`, payload);
@@ -171,8 +174,15 @@ function PaymentFormModal({ payment, onClose, onPaid }: {
       onClose();
     } catch (err: any) {
       console.error("Payment error response:", err.response?.data);
-      const msg = err.response?.data?.message || err.response?.data?.error || "Check console for details";
-      toast.error(`Validation failed: ${msg}`, { duration: 5000 });
+      const errorData = err.response?.data;
+      let msg = errorData?.message || errorData?.error || "Validation failed";
+      
+      // If there are specific field errors, show them
+      if (errorData?.errors) {
+        msg += ": " + JSON.stringify(errorData.errors);
+      }
+      
+      toast.error(msg, { duration: 8000 });
     } finally {
       setLoading(false);
     }
