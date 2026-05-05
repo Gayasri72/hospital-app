@@ -330,8 +330,8 @@ export default function UsersPage() {
 
       const filtered = normalized.filter((u: any) => {
         if (currentUser.role === "Hospital Admin") {
-          // Hide Super Admins and other Hospital Admins (except self)
-          return u.role !== "Super Admin" && (u.role !== "Hospital Admin" || u.user_id === currentUser.user_id);
+          // Hide all Super Admins and all Hospital Admins (including self as per user request)
+          return u.role !== "Super Admin" && u.role !== "Hospital Admin";
         }
         return true;
       });
