@@ -4,7 +4,7 @@ const nextConfig = {
     return [
       {
         source: "/api/v1/:path*",
-        destination: "https://hospital-managemnt-system.vercel.app/api/v1/:path*",
+        destination: "https://hospital-management-system.vercel.app/api/v1/:path*",
       },
     ];
   },

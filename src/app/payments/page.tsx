@@ -10,6 +10,7 @@ import {
 import { useRequireAuth } from "@/hooks/useAuth";
 import api from "@/lib/api";
 import { getErrorMessage, cn } from "@/lib/utils";
+import { useAuthStore } from "@/store/authStore";
 import dayjs from "dayjs";
 
 interface Payment {
@@ -144,6 +145,7 @@ function PaymentFormModal({ payment, onClose, onPaid }: {
   onClose: () => void;
   onPaid: () => void;
 }) {
+  const { user } = useAuthStore();
   const [method, setMethod] = useState("Cash");
   const [loading, setLoading] = useState(false);
 
@@ -151,8 +153,10 @@ function PaymentFormModal({ payment, onClose, onPaid }: {
     setLoading(true);
     try {
       await api.post(`payments/${payment.payment_id}/transactions/`, {
-        method: method.toLowerCase(), 
+        method: method, // Use original case (e.g., "Cash")
         amount: payment.total_amount,
+        hospital_id: user?.hospital_id,
+        branch_id: user?.branch_id,
       });
       toast.success("Payment recorded successfully!");
       onPaid();
