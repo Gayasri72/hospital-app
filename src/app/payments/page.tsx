@@ -152,17 +152,27 @@ function PaymentFormModal({ payment, onClose, onPaid }: {
   async function handlePay() {
     setLoading(true);
     try {
-      await api.post(`payments/${payment.payment_id}/transactions/`, {
-        method: method, // Use original case (e.g., "Cash")
-        amount: payment.total_amount,
+      // Try with both 'method' and 'payment_method' just in case
+      const payload = {
+        method: method,
+        payment_method: method, 
+        amount: Number(payment.total_amount),
         hospital_id: user?.hospital_id,
         branch_id: user?.branch_id,
-      });
+        payment_id: payment.payment_id,
+        date: dayjs().toISOString(),
+      };
+      
+      console.log("Sending payment payload:", payload);
+      await api.post(`payments/${payment.payment_id}/transactions/`, payload);
+      
       toast.success("Payment recorded successfully!");
       onPaid();
       onClose();
-    } catch (err) {
-      toast.error(getErrorMessage(err));
+    } catch (err: any) {
+      console.error("Payment error response:", err.response?.data);
+      const msg = err.response?.data?.message || err.response?.data?.error || "Check console for details";
+      toast.error(`Validation failed: ${msg}`, { duration: 5000 });
     } finally {
       setLoading(false);
     }
