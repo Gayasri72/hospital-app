@@ -71,12 +71,17 @@ function UserModal({ currentUser, editUser, onClose, onSaved }: {
     if (!form.role_id) { toast.error("Please select a role"); return; }
     setLoading(true);
     try {
+      const selectedRole = roles.find(r => String(r.role_id) === form.role_id);
       const payload: Record<string, any> = {
         name: form.name,
         email: form.email,
         role_id: Number(form.role_id),
+        role: selectedRole?.name,
+        hospital_id: currentUser.hospital_id,
+        branch_id: currentUser.branch_id,
       };
       if (!isEdit) payload.password = form.password;
+
       if (isEdit) {
         await api.put(`admin/users/${editUser!.user_id}`, payload);
         toast.success("User updated successfully");
@@ -85,8 +90,20 @@ function UserModal({ currentUser, editUser, onClose, onSaved }: {
         toast.success("User created successfully");
       }
       onSaved(); onClose();
-    } catch (err) {
-      toast.error(getErrorMessage(err));
+    } catch (err: any) {
+      const errorData = err?.response?.data;
+      let msg = errorData?.message || errorData?.error || getErrorMessage(err);
+      
+      if (errorData?.errors) {
+        if (Array.isArray(errorData.errors)) {
+          msg = errorData.errors.map((e: any) => typeof e === 'string' ? e : (e.message || JSON.stringify(e))).join(", ");
+        } else if (typeof errorData.errors === 'object') {
+          msg = Object.entries(errorData.errors)
+            .map(([field, error]) => `${field}: ${Array.isArray(error) ? error.join(", ") : (typeof error === 'object' ? JSON.stringify(error) : error)}`)
+            .join("\n");
+        }
+      }
+      toast.error(msg, { duration: 5000 });
     } finally {
       setLoading(false);
     }

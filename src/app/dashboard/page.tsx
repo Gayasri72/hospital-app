@@ -61,9 +61,9 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!user) return;
     Promise.all([
-      api.get("reports/dashboard").catch(() => null),
-      api.get("reports/appointments").catch(() => null),
-      api.get("reports/financial").catch(() => null),
+      api.get("reports/dashboard/").catch(() => null),
+      api.get("reports/appointments/").catch(() => null),
+      api.get("reports/financial/").catch(() => null),
     ]).then(([dash]) => {
       if (dash?.data?.data) {
         setStats(dash.data.data);

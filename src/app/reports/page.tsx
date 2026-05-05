@@ -29,9 +29,9 @@ export default function ReportsPage() {
   const fetchRevenue = useCallback(async () => {
     try {
       const [total, byDoctor, byMethod] = await Promise.all([
-        api.get("reports/revenue", { params: { start_date: range.start, end_date: range.end } }),
-        api.get("reports/revenue/by-doctor", { params: { start_date: range.start, end_date: range.end } }),
-        api.get("reports/revenue/by-payment-method", { params: { start_date: range.start, end_date: range.end } })
+        api.get("reports/revenue/", { params: { start_date: range.start, end_date: range.end } }),
+        api.get("reports/revenue/by-doctor/", { params: { start_date: range.start, end_date: range.end } }),
+        api.get("reports/revenue/by-payment-method/", { params: { start_date: range.start, end_date: range.end } })
       ]);
       setRevenueData({
         total: total.data.data,
