@@ -77,21 +77,32 @@ function UserModal({ currentUser, editUser, onClose, onSaved }: {
         email: form.email,
         role_id: Number(form.role_id),
         role: selectedRole?.name,
-        hospital_id: currentUser.hospital_id,
-        branch_id: currentUser.branch_id,
       };
+      if (currentUser.hospital_id) payload.hospital_id = currentUser.hospital_id;
+      if (currentUser.branch_id) payload.branch_id = currentUser.branch_id;
+      
       if (!isEdit) payload.password = form.password;
 
       if (isEdit) {
-        await api.put(`admin/users/${editUser!.user_id}`, payload);
+        await api.put(`admin/users/${editUser!.user_id}/`, payload);
         toast.success("User updated successfully");
       } else {
-        await api.post("admin/users", payload);
+        await api.post("admin/users/", payload);
         toast.success("User created successfully");
       }
       onSaved(); onClose();
     } catch (err: any) {
       const errorData = err?.response?.data;
+      const selectedRole = roles.find(r => String(r.role_id) === form.role_id);
+      const payload = {
+        name: form.name,
+        email: form.email,
+        role_id: Number(form.role_id),
+        role: selectedRole?.name,
+        hospital_id: currentUser.hospital_id,
+        branch_id: currentUser.branch_id,
+      };
+
       let msg = errorData?.message || errorData?.error || getErrorMessage(err);
       
       if (errorData?.errors) {
@@ -103,7 +114,14 @@ function UserModal({ currentUser, editUser, onClose, onSaved }: {
             .join("\n");
         }
       }
-      toast.error(msg, { duration: 5000 });
+      
+      // If still generic "Validation failed", append the payload to help debug
+      if (msg === "Validation failed") {
+        msg += " | Payload: " + JSON.stringify(payload);
+      }
+
+      toast.error(msg, { duration: 8000 });
+      console.error("User Creation Error:", { errorData, payload });
     } finally {
       setLoading(false);
     }
