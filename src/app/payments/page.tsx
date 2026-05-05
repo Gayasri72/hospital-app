@@ -30,10 +30,14 @@ interface Payment {
 }
 
 const STATUS_STYLES: Record<string, string> = {
-  Pending:  "bg-yellow-100 text-yellow-700",
-  Paid:     "bg-green-100 text-green-700",
-  Refunded: "bg-gray-100 text-gray-600",
+  pending:  "bg-yellow-100 text-yellow-700",
+  paid:     "bg-green-100 text-green-700",
+  refunded: "bg-gray-100 text-gray-600",
 };
+
+function getStatusStyle(status: string) {
+  return STATUS_STYLES[status.toLowerCase()] || "bg-gray-100 text-gray-600";
+}
 
 const METHOD_ICONS: Record<string, React.ReactNode> = {
   Cash:     <Banknote className="w-4 h-4" />,
@@ -234,7 +238,14 @@ export default function PaymentsPage() {
       if (statusFilter) params.status = statusFilter.toLowerCase();
       
       const res = await api.get("payments", { params });
-      setPayments(res.data.data);
+      
+      // Normalize statuses for consistent UI
+      const normalized = res.data.data.map((p: any) => ({
+        ...p,
+        status: p.status?.charAt(0).toUpperCase() + p.status?.slice(1).toLowerCase()
+      }));
+
+      setPayments(normalized);
       setMeta(res.data.meta ?? { total: res.data.data.length, page: 1, limit: 20 });
     } catch (err: any) {
       if (err?.response?.status === 422 && statusFilter) {
@@ -341,17 +352,17 @@ export default function PaymentsPage() {
                       <div className="text-sm font-bold text-gray-900">Rs {p.total_amount.toLocaleString()}</div>
                     </td>
                     <td className="px-5 py-3.5">
-                      <span className={cn("text-xs px-2.5 py-1 rounded-lg font-medium", STATUS_STYLES[p.status] ?? "bg-gray-100 text-gray-600")}>
+                      <span className={cn("text-xs px-2.5 py-1 rounded-lg font-medium", getStatusStyle(p.status))}>
                         {p.status}
                       </span>
                     </td>
                     <td className="px-5 py-3.5 text-xs text-gray-400">{dayjs(p.created_at).format("MMM D, YYYY")}</td>
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-2 justify-end">
-                        {p.status === "Pending" && (
+                        {p.status.toLowerCase() === "pending" && (
                           <button onClick={() => setPayTarget(p)}
-                            className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-semibold transition">
-                            Pay
+                            className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-semibold transition shadow-sm hover:shadow-md">
+                            Pay Now
                           </button>
                         )}
                         {p.status === "Paid" && (
