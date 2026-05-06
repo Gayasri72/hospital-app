@@ -28,6 +28,12 @@ function markDeleted(id: string) {
   ids.add(id);
   localStorage.setItem(DELETED_KEY, JSON.stringify([...ids]));
 }
+function cacheFee(doctorId: string, fee: number) {
+  if (!doctorId || !fee) return;
+  const cache = getCachedFees();
+  cache[doctorId] = fee;
+  localStorage.setItem("doctor_fees_cache", JSON.stringify(cache));
+}
 
 interface Doctor {
   doctor_id: string;
@@ -62,13 +68,18 @@ export default function DoctorsPage() {
       const feeCache = getCachedFees();
       const merged = res.data.data
         .filter((d: Doctor) => !deletedIds.has(d.doctor_id))
-        .map((d: any) => ({
-          ...d,
-          // Normalize status casing
-          status: d.status?.toLowerCase() === "active" ? "Active" : "Inactive",
-          phone: d.contact_number || d.phone, // Handle both field names
-          consultation_fee: feeCache[d.doctor_id] ?? d.consultation_fee ?? 0
-        }));
+        .map((d: any) => {
+          // Auto-sync cache with whatever the backend has (if it has anything)
+          if (d.consultation_fee) cacheFee(d.doctor_id, d.consultation_fee);
+          
+          return {
+            ...d,
+            // Normalize status casing
+            status: d.status?.toLowerCase() === "active" ? "Active" : "Inactive",
+            phone: d.contact_number || d.phone, // Handle both field names
+            consultation_fee: feeCache[d.doctor_id] ?? d.consultation_fee ?? 0
+          };
+        });
       setDoctors(merged);
       const filteredTotal = res.data.data.length - (res.data.data.filter((d: Doctor) => deletedIds.has(d.doctor_id)).length);
       setMeta({ ...(res.data.meta ?? { total: res.data.data.length, page: 1, limit: 20 }), total: filteredTotal });

@@ -201,8 +201,19 @@ export default function DoctorDetailPage() {
       
       const res = await api.put(`doctors/${doctorId}`, payload);
       cacheFee(doctorId, payload.consultation_fee);
-      const returnedDoctor = res.data.data;
-      setDoctor({ ...returnedDoctor, consultation_fee: payload.consultation_fee });
+      
+      // Re-fetch to confirm update
+      const updatedRes = await api.get(`doctors/${doctorId}`);
+      const updatedDoc = updatedRes.data.data;
+      const merged = { 
+        ...updatedDoc, 
+        phone: updatedDoc.contact_number || updatedDoc.phone,
+        status: updatedDoc.status?.toLowerCase() === "active" ? "Active" : "Inactive",
+        consultation_fee: payload.consultation_fee // Prioritize what we just saved
+      };
+      
+      setDoctor(merged);
+      setEditForm(merged);
       setEditing(false);
       toast.success("Doctor profile updated successfully");
     } catch (err) {
