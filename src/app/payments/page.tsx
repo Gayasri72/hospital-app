@@ -52,265 +52,144 @@ function ReceiptModal({ payment, onClose }: { payment: Payment; onClose: () => v
   const printRef = useRef<HTMLDivElement>(null);
 
   function handlePrint() {
-    // 1. Prepare the futuristic HTML content
-    const receiptHtml = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Receipt - ${payment.payment_id.slice(0, 8).toUpperCase()}</title>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Orbitron:wght@700&display=swap" rel="stylesheet">
-        <style>
-          :root {
-            --primary: #0066ff;
-            --accent: #00f2ff;
-            --text: #1a1a1a;
-            --muted: #666;
-            --border: #e5e7eb;
-          }
-          * { box-sizing: border-box; margin: 0; padding: 0; }
-          body { 
-            font-family: 'Inter', sans-serif; 
-            color: var(--text); 
-            line-height: 1.5;
-            padding: 40px;
-            background: #fff;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-          }
-          .container {
-            max-width: 500px;
-            margin: 0 auto;
-            border: 1px solid var(--border);
-            padding: 32px;
-            position: relative;
-            overflow: hidden;
-          }
-          .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 32px;
-          }
-          .logo-container {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-          }
-          .logo-img {
-            width: 48px;
-            height: 48px;
-            object-fit: contain;
-          }
-          .brand-name {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 20px;
-            font-weight: 700;
-            color: var(--primary);
-            letter-spacing: -0.5px;
-          }
-          .receipt-title {
-            text-align: right;
-          }
-          .receipt-label {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 24px;
-            font-weight: 700;
-            color: #ddd;
-            text-transform: uppercase;
-            line-height: 1;
-          }
-          .receipt-id {
-            font-size: 12px;
-            color: var(--muted);
-            margin-top: 4px;
-          }
-          .info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 24px;
-            margin-bottom: 32px;
-          }
-          .info-box h4 {
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--muted);
-            margin-bottom: 8px;
-          }
-          .info-box p {
-            font-size: 14px;
-            font-weight: 600;
-          }
-          .items-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 32px;
-          }
-          .items-table th {
-            text-align: left;
-            font-size: 11px;
-            text-transform: uppercase;
-            color: var(--muted);
-            padding-bottom: 12px;
-            border-bottom: 1px solid var(--border);
-          }
-          .items-table td {
-            padding: 12px 0;
-            font-size: 14px;
-            border-bottom: 1px solid #f9fafb;
-          }
-          .total-section {
-            margin-top: 24px;
-            padding-top: 24px;
-            border-top: 2px solid var(--text);
-          }
-          .total-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-          }
-          .total-label {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 18px;
-            font-weight: 700;
-          }
-          .total-value {
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--primary);
-          }
-          .footer {
-            margin-top: 40px;
-            text-align: center;
-          }
-          .qr-placeholder {
-            width: 80px;
-            height: 80px;
-            background: #f3f4f6;
-            margin: 0 auto 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 1px solid #e5e7eb;
-            font-size: 10px;
-            color: #9ca3af;
-          }
-          .thanks {
-            font-size: 12px;
-            color: var(--muted);
-          }
-          .paid-stamp {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) rotate(-15deg);
-            border: 4px solid rgba(0, 242, 255, 0.2);
-            padding: 8px 24px;
-            font-family: 'Orbitron', sans-serif;
-            font-size: 64px;
-            color: rgba(0, 242, 255, 0.1);
-            pointer-events: none;
-            text-transform: uppercase;
-            z-index: 0;
-          }
-          @media print {
-            @page { margin: 10mm; }
-            body { padding: 0; }
-            .container { border: 1px solid var(--border); }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="paid-stamp">PAID</div>
-          <div class="header">
-            <div class="logo-container">
-              <img src="/logo.png" class="logo-img" alt="Logo">
-              <span class="brand-name">MediCore HMS</span>
-            </div>
-            <div class="receipt-title">
-              <div class="receipt-label">Receipt</div>
-              <div class="receipt-id">#${payment.payment_id.slice(0, 8).toUpperCase()}</div>
-            </div>
-          </div>
-          <div class="info-grid">
-            <div class="info-box">
-              <h4>Patient Details</h4>
-              <p>${payment.appointment.patient.name}</p>
-              <div style="font-size: 11px; color: #666; margin-top: 2px;">ID: ${payment.appointment.patient.patient_id.slice(0, 6).toUpperCase()}</div>
-            </div>
-            <div class="info-box">
-              <h4>Date & Time</h4>
-              <p>${dayjs(payment.created_at).format("MMM D, YYYY")}</p>
-              <div style="font-size: 11px; color: #666; margin-top: 2px;">${dayjs(payment.created_at).format("h:mm A")}</div>
-            </div>
-          </div>
-          <table class="items-table">
-            <thead>
-              <tr>
-                <th>Description</th>
-                <th style="text-align: right;">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>
-                  <strong>Consultation Fee</strong><br>
-                  <span style="font-size: 12px; color: #666;">Dr. ${payment.appointment.doctor.name} (${payment.appointment.doctor.specialization})</span>
-                </td>
-                <td style="text-align: right;">Rs ${payment.doctor_fee?.toLocaleString() ?? "0"}</td>
-              </tr>
-              <tr>
-                <td>
-                  <strong>Hospital Service Charges</strong><br>
-                  <span style="font-size: 12px; color: #666;">Facility and administrative fees</span>
-                </td>
-                <td style="text-align: right;">Rs ${payment.hospital_charge?.toLocaleString() ?? "0"}</td>
-              </tr>
-            </tbody>
-          </table>
-          <div class="total-section">
-            <div class="total-row">
-              <span class="total-label">Total Paid</span>
-              <span class="total-value">Rs ${payment.total_amount.toLocaleString()}</span>
-            </div>
-          </div>
-          <div class="footer">
-            <div class="qr-placeholder">
-              <div style="text-align: center;">
-                <div style="font-weight: bold; margin-bottom: 2px;">VERIFY</div>
-                ${payment.payment_id.slice(0, 4)}
-              </div>
-            </div>
-            <p class="thanks">Thank you for choosing MediCore HMS</p>
-            <p style="font-size: 10px; color: #999; margin-top: 8px;">Digital Receipt Generated on ${dayjs().format("YYYY-MM-DD HH:mm")}</p>
-          </div>
-        </div>
-      </body>
-      </html>`;
-
-    // 2. Create temporary iframe
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    document.body.appendChild(iframe);
-    
-    const doc = iframe.contentWindow?.document;
-    if (!doc) return;
-
-    doc.open();
-    doc.write(receiptHtml);
-    doc.close();
-
-    // 3. Print and cleanup
-    iframe.contentWindow?.focus();
-    setTimeout(() => {
-      iframe.contentWindow?.print();
-      setTimeout(() => document.body.removeChild(iframe), 1000);
-    }, 600);
+    window.print();
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Global Print Styles */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          /* Hide everything by default */
+          body * {
+            visibility: hidden !important;
+            overflow: visible !important;
+          }
+          /* Show only the print container and its contents */
+          #print-receipt-container, #print-receipt-container * {
+            visibility: visible !important;
+          }
+          /* Position the print container at the very top left */
+          #print-receipt-container {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            z-index: 99999 !important;
+            display: block !important;
+          }
+          /* Fix for background colors in some browsers */
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+        }
+      ` }} />
+
+      {/* Hidden Print Container (Only visible during window.print()) */}
+      <div id="print-receipt-container" className="hidden">
+        <div style={{
+          fontFamily: "'Inter', sans-serif",
+          color: "#1a1a1a",
+          padding: "40px",
+          background: "white",
+          maxWidth: "500px",
+          margin: "0 auto",
+          border: "1px solid #e5e7eb",
+          position: "relative",
+          overflow: "hidden"
+        }}>
+          {/* Futuristic Stamp */}
+          <div style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%) rotate(-15deg)",
+            border: "4px solid rgba(0, 102, 255, 0.1)",
+            padding: "10px 30px",
+            fontFamily: "'Orbitron', sans-serif",
+            fontSize: "64px",
+            color: "rgba(0, 102, 255, 0.05)",
+            textTransform: "uppercase",
+            zIndex: 0,
+            pointerEvents: "none"
+          }}>PAID</div>
+
+          {/* Header */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "40px", position: "relative", zIndex: 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+              <img src="/logo.png" style={{ width: "50px", height: "50px", objectFit: "contain" }} alt="Logo" />
+              <span style={{ fontFamily: "'Orbitron', sans-serif", fontSize: "22px", fontWeight: "bold", color: "#0066ff" }}>MediCore HMS</span>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontFamily: "'Orbitron', sans-serif", fontSize: "28px", fontWeight: "bold", color: "#eee", textTransform: "uppercase", lineHeight: 1 }}>Receipt</div>
+              <div style={{ fontSize: "12px", color: "#666", marginTop: "5px" }}>#{payment.payment_id.slice(0, 8).toUpperCase()}</div>
+            </div>
+          </div>
+
+          {/* Info Grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "30px", marginBottom: "40px", position: "relative", zIndex: 1 }}>
+            <div>
+              <h4 style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "1.5px", color: "#888", marginBottom: "10px" }}>Patient</h4>
+              <p style={{ fontSize: "15px", fontWeight: "bold" }}>{payment.appointment.patient.name}</p>
+              <div style={{ fontSize: "11px", color: "#666", marginTop: "2px" }}>ID: {payment.appointment.patient.patient_id.slice(0, 6).toUpperCase()}</div>
+            </div>
+            <div>
+              <h4 style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "1.5px", color: "#888", marginBottom: "10px" }}>Date & Time</h4>
+              <p style={{ fontSize: "15px", fontWeight: "bold" }}>{dayjs(payment.created_at).format("MMM D, YYYY")}</p>
+              <div style={{ fontSize: "11px", color: "#666", marginTop: "2px" }}>{dayjs(payment.created_at).format("h:mm A")}</div>
+            </div>
+          </div>
+
+          {/* Table */}
+          <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "40px", position: "relative", zIndex: 1 }}>
+            <thead>
+              <tr style={{ borderBottom: "1px solid #eee" }}>
+                <th style={{ textAlign: "left", fontSize: "11px", textTransform: "uppercase", color: "#888", paddingBottom: "15px" }}>Description</th>
+                <th style={{ textAlign: "right", fontSize: "11px", textTransform: "uppercase", color: "#888", paddingBottom: "15px" }}>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style={{ padding: "20px 0", fontSize: "14px" }}>
+                  <strong>Consultation Fee</strong><br />
+                  <span style={{ fontSize: "12px", color: "#666" }}>Dr. {payment.appointment.doctor.name} ({payment.appointment.doctor.specialization})</span>
+                </td>
+                <td style={{ textAlign: "right", padding: "20px 0", fontSize: "15px", fontWeight: "bold" }}>Rs {payment.doctor_fee?.toLocaleString()}</td>
+              </tr>
+              <tr>
+                <td style={{ padding: "0 0 20px 0", fontSize: "14px" }}>
+                  <strong>Hospital Charges</strong><br />
+                  <span style={{ fontSize: "12px", color: "#666" }}>Facility and administrative fees</span>
+                </td>
+                <td style={{ textAlign: "right", padding: "0 0 20px 0", fontSize: "15px", fontWeight: "bold" }}>Rs {payment.hospital_charge?.toLocaleString()}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          {/* Total */}
+          <div style={{ paddingTop: "30px", borderTop: "2px solid #1a1a1a", display: "flex", justifyContent: "space-between", alignItems: "center", position: "relative", zIndex: 1 }}>
+            <span style={{ fontFamily: "'Orbitron', sans-serif", fontSize: "18px", fontWeight: "bold" }}>Total Paid</span>
+            <span style={{ fontSize: "28px", fontWeight: "bold", color: "#0066ff" }}>Rs {payment.total_amount.toLocaleString()}</span>
+          </div>
+
+          {/* Footer */}
+          <div style={{ marginTop: "50px", textAlign: "center", position: "relative", zIndex: 1 }}>
+            <div style={{ width: "80px", height: "80px", background: "#f9f9f9", border: "1px solid #eee", margin: "0 auto 20px", display: "flex", alignItems: "center", justifyCenter: "center", fontSize: "10px", color: "#ccc" }}>
+              <div style={{ textAlign: "center", width: "100%" }}>
+                <div style={{ fontWeight: "bold", color: "#999" }}>VERIFY</div>
+                {payment.payment_id.slice(0, 4)}
+              </div>
+            </div>
+            <p style={{ fontSize: "13px", color: "#666" }}>Thank you for choosing MediCore HMS</p>
+            <p style={{ fontSize: "10px", color: "#aaa", marginTop: "10px" }}>Digital Receipt ID: {payment.payment_id.toUpperCase()}</p>
+          </div>
+        </div>
+      </div>
+
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose} />
       <div className="relative bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-sm animate-slide-in overflow-hidden border border-white/20">
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 via-cyan-400 to-blue-600"></div>
