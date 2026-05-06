@@ -55,6 +55,17 @@ function ReceiptModal({ payment, onClose }: { payment: Payment; onClose: () => v
     window.print();
   }
 
+  const patientName = payment?.appointment?.patient?.name ?? "N/A";
+  const patientId = payment?.appointment?.patient?.patient_id?.slice(0, 6).toUpperCase() ?? "N/A";
+  const doctorName = payment?.appointment?.doctor?.name ?? "N/A";
+  const specialization = payment?.appointment?.doctor?.specialization ?? "General";
+  const paymentDate = payment?.created_at ? dayjs(payment.created_at).format("MMM D, YYYY") : dayjs().format("MMM D, YYYY");
+  const paymentTime = payment?.created_at ? dayjs(payment.created_at).format("h:mm A") : dayjs().format("h:mm A");
+  const receiptId = payment?.payment_id?.slice(0, 8).toUpperCase() ?? "N/A";
+  const totalAmount = payment?.total_amount?.toLocaleString() ?? "0";
+  const doctorFee = payment?.doctor_fee?.toLocaleString() ?? "0";
+  const hospitalCharge = payment?.hospital_charge?.toLocaleString() ?? "0";
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Global Print Styles */}
@@ -126,7 +137,7 @@ function ReceiptModal({ payment, onClose }: { payment: Payment; onClose: () => v
             </div>
             <div style={{ textAlign: "right" }}>
               <div style={{ fontFamily: "'Orbitron', sans-serif", fontSize: "28px", fontWeight: "bold", color: "#eee", textTransform: "uppercase", lineHeight: 1 }}>Receipt</div>
-              <div style={{ fontSize: "12px", color: "#666", marginTop: "5px" }}>#{payment.payment_id.slice(0, 8).toUpperCase()}</div>
+              <div style={{ fontSize: "12px", color: "#666", marginTop: "5px" }}>#{receiptId}</div>
             </div>
           </div>
 
@@ -134,13 +145,13 @@ function ReceiptModal({ payment, onClose }: { payment: Payment; onClose: () => v
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "30px", marginBottom: "40px", position: "relative", zIndex: 1 }}>
             <div>
               <h4 style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "1.5px", color: "#888", marginBottom: "10px" }}>Patient</h4>
-              <p style={{ fontSize: "15px", fontWeight: "bold" }}>{payment.appointment.patient.name}</p>
-              <div style={{ fontSize: "11px", color: "#666", marginTop: "2px" }}>ID: {payment.appointment.patient.patient_id.slice(0, 6).toUpperCase()}</div>
+              <p style={{ fontSize: "15px", fontWeight: "bold" }}>{patientName}</p>
+              <div style={{ fontSize: "11px", color: "#666", marginTop: "2px" }}>ID: {patientId}</div>
             </div>
             <div>
               <h4 style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "1.5px", color: "#888", marginBottom: "10px" }}>Date & Time</h4>
-              <p style={{ fontSize: "15px", fontWeight: "bold" }}>{dayjs(payment.created_at).format("MMM D, YYYY")}</p>
-              <div style={{ fontSize: "11px", color: "#666", marginTop: "2px" }}>{dayjs(payment.created_at).format("h:mm A")}</div>
+              <p style={{ fontSize: "15px", fontWeight: "bold" }}>{paymentDate}</p>
+              <div style={{ fontSize: "11px", color: "#666", marginTop: "2px" }}>{paymentTime}</div>
             </div>
           </div>
 
@@ -156,16 +167,16 @@ function ReceiptModal({ payment, onClose }: { payment: Payment; onClose: () => v
               <tr>
                 <td style={{ padding: "20px 0", fontSize: "14px" }}>
                   <strong>Consultation Fee</strong><br />
-                  <span style={{ fontSize: "12px", color: "#666" }}>Dr. {payment.appointment.doctor.name} ({payment.appointment.doctor.specialization})</span>
+                  <span style={{ fontSize: "12px", color: "#666" }}>Dr. {doctorName} ({specialization})</span>
                 </td>
-                <td style={{ textAlign: "right", padding: "20px 0", fontSize: "15px", fontWeight: "bold" }}>Rs {payment.doctor_fee?.toLocaleString()}</td>
+                <td style={{ textAlign: "right", padding: "20px 0", fontSize: "15px", fontWeight: "bold" }}>Rs {doctorFee}</td>
               </tr>
               <tr>
                 <td style={{ padding: "0 0 20px 0", fontSize: "14px" }}>
                   <strong>Hospital Charges</strong><br />
                   <span style={{ fontSize: "12px", color: "#666" }}>Facility and administrative fees</span>
                 </td>
-                <td style={{ textAlign: "right", padding: "0 0 20px 0", fontSize: "15px", fontWeight: "bold" }}>Rs {payment.hospital_charge?.toLocaleString()}</td>
+                <td style={{ textAlign: "right", padding: "0 0 20px 0", fontSize: "15px", fontWeight: "bold" }}>Rs {hospitalCharge}</td>
               </tr>
             </tbody>
           </table>
@@ -173,7 +184,7 @@ function ReceiptModal({ payment, onClose }: { payment: Payment; onClose: () => v
           {/* Total */}
           <div style={{ paddingTop: "30px", borderTop: "2px solid #1a1a1a", display: "flex", justifyContent: "space-between", alignItems: "center", position: "relative", zIndex: 1 }}>
             <span style={{ fontFamily: "'Orbitron', sans-serif", fontSize: "18px", fontWeight: "bold" }}>Total Paid</span>
-            <span style={{ fontSize: "28px", fontWeight: "bold", color: "#0066ff" }}>Rs {payment.total_amount.toLocaleString()}</span>
+            <span style={{ fontSize: "28px", fontWeight: "bold", color: "#0066ff" }}>Rs {totalAmount}</span>
           </div>
 
           {/* Footer */}
@@ -181,11 +192,11 @@ function ReceiptModal({ payment, onClose }: { payment: Payment; onClose: () => v
             <div style={{ width: "80px", height: "80px", background: "#f9f9f9", border: "1px solid #eee", margin: "0 auto 20px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", color: "#ccc" }}>
               <div style={{ textAlign: "center", width: "100%" }}>
                 <div style={{ fontWeight: "bold", color: "#999" }}>VERIFY</div>
-                {payment.payment_id.slice(0, 4)}
+                {payment?.payment_id?.slice(0, 4) ?? "----"}
               </div>
             </div>
             <p style={{ fontSize: "13px", color: "#666" }}>Thank you for choosing MediCore HMS</p>
-            <p style={{ fontSize: "10px", color: "#aaa", marginTop: "10px" }}>Digital Receipt ID: {payment.payment_id.toUpperCase()}</p>
+            <p style={{ fontSize: "10px", color: "#aaa", marginTop: "10px" }}>Digital Receipt ID: {receiptId}</p>
           </div>
         </div>
       </div>
@@ -222,25 +233,25 @@ function ReceiptModal({ payment, onClose }: { payment: Payment; onClose: () => v
               </div>
               <div className="text-right">
                 <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Receipt No</div>
-                <div className="text-sm font-mono font-bold text-gray-900 dark:text-white">{payment.payment_id.slice(0, 8).toUpperCase()}</div>
+                <div className="text-sm font-mono font-bold text-gray-900 dark:text-white">{receiptId}</div>
               </div>
             </div>
 
             <div className="space-y-3">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500 dark:text-gray-400">Patient</span>
-                <span className="font-semibold text-gray-900 dark:text-white">{payment.appointment.patient.name}</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{patientName}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500 dark:text-gray-400">Date</span>
-                <span className="font-semibold text-gray-900 dark:text-white">{dayjs(payment.created_at).format("MMM D, YYYY")}</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{paymentDate}</span>
               </div>
             </div>
 
             <div className="border-t border-dashed border-gray-200 dark:border-gray-700 pt-3">
               <div className="flex justify-between items-baseline">
                 <span className="text-sm font-bold text-gray-900 dark:text-white">Amount Paid</span>
-                <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">Rs {payment.total_amount.toLocaleString()}</span>
+                <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">Rs {totalAmount}</span>
               </div>
             </div>
           </div>
