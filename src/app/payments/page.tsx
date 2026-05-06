@@ -178,7 +178,7 @@ function ReceiptModal({ payment, onClose }: { payment: Payment; onClose: () => v
 
           {/* Footer */}
           <div style={{ marginTop: "50px", textAlign: "center", position: "relative", zIndex: 1 }}>
-            <div style={{ width: "80px", height: "80px", background: "#f9f9f9", border: "1px solid #eee", margin: "0 auto 20px", display: "flex", alignItems: "center", justifyCenter: "center", fontSize: "10px", color: "#ccc" }}>
+            <div style={{ width: "80px", height: "80px", background: "#f9f9f9", border: "1px solid #eee", margin: "0 auto 20px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", color: "#ccc" }}>
               <div style={{ textAlign: "center", width: "100%" }}>
                 <div style={{ fontWeight: "bold", color: "#999" }}>VERIFY</div>
                 {payment.payment_id.slice(0, 4)}
