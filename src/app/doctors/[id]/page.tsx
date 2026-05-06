@@ -18,7 +18,7 @@ interface Doctor {
   phone: string;
   email?: string;
   consultation_fee: number;
-  status: "active" | "inactive";
+  status: "Active" | "Inactive";
   profile?: {
     contact_number?: string;
     email?: string;
@@ -125,7 +125,11 @@ export default function DoctorDetailPage() {
         const res = await api.get(`doctors/${doctorId}`);
         const d = res.data.data;
         const cachedFee = getCachedFee(doctorId);
-        const merged = { ...d, consultation_fee: cachedFee || d.consultation_fee };
+        const merged = { 
+          ...d, 
+          status: d.status?.toLowerCase() === "active" ? "Active" : "Inactive",
+          consultation_fee: cachedFee || d.consultation_fee || 0 
+        };
         setDoctor(merged);
         setEditForm(merged);
       } catch (err) {
@@ -272,8 +276,8 @@ export default function DoctorDetailPage() {
               </div>
               {!editing && (
                 <span className={cn("text-xs px-3 py-1 rounded-full font-medium flex items-center gap-1.5",
-                  doctor.status === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500")}>
-                  {doctor.status === "active" ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+                  doctor.status === "Active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500")}>
+                  {doctor.status === "Active" ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
                   <span className="capitalize">{doctor.status}</span>
                 </span>
               )}
@@ -295,10 +299,10 @@ export default function DoctorDetailPage() {
                   </div>
                   <div>
                     <label className="text-xs text-gray-500 mb-1 block">Status</label>
-                    <select value={editForm.status ?? "active"} onChange={(e) => setEditForm(f => ({ ...f, status: e.target.value as "active" | "inactive" }))}
+                    <select value={editForm.status ?? "Active"} onChange={(e) => setEditForm(f => ({ ...f, status: e.target.value as "Active" | "Inactive" }))}
                       className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
                     </select>
                   </div>
                   <div>

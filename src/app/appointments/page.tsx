@@ -23,7 +23,12 @@ interface Appointment {
 }
 
 interface Patient { patient_id: string; name: string; nic: string; phone: string; }
-interface Doctor  { doctor_id: string; name: string; specialization: string; }
+interface Doctor  { 
+  doctor_id: string; 
+  name: string; 
+  specialization: string; 
+  consultation_fee?: number; 
+}
 interface Session {
   session_id: string; date: string; start_time: string;
   end_time: string; max_patients: number; booked_count: number; status: string;
@@ -79,7 +84,13 @@ function CreateAppointmentModal({ onClose, onSaved }: { onClose: () => void; onS
       api.get("doctors", { params: { search: doctorSearch, limit: 20 } })
         .then((r) => {
           const deletedIds = getDeletedDoctorIds();
-          const filtered = r.data.data.filter((d: Doctor) => !deletedIds.has(d.doctor_id));
+          const feeCache = JSON.parse(localStorage.getItem("doctor_fees_cache") || "{}");
+          const filtered = r.data.data
+            .filter((d: any) => !deletedIds.has(d.doctor_id))
+            .map((d: any) => ({
+              ...d,
+              consultation_fee: feeCache[d.doctor_id] ?? d.consultation_fee ?? 0
+            }));
           setDoctors(filtered);
         }).catch(() => {});
     }
@@ -192,9 +203,14 @@ function CreateAppointmentModal({ onClose, onSaved }: { onClose: () => void; onS
                   <div className="w-9 h-9 rounded-full bg-teal-100 flex items-center justify-center text-teal-700 font-semibold text-sm flex-shrink-0">
                     <Stethoscope className="w-4 h-4" />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <div className="text-sm font-semibold text-gray-900">{d.name}</div>
-                    <div className="text-xs text-blue-600">{d.specialization}</div>
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs text-blue-600">{d.specialization}</div>
+                      <div className="text-xs font-bold text-gray-700">
+                        {d.consultation_fee ? `Rs ${d.consultation_fee.toLocaleString()}` : "Fee not set"}
+                      </div>
+                    </div>
                   </div>
                 </button>
               ))}
@@ -262,6 +278,9 @@ function CreateAppointmentModal({ onClose, onSaved }: { onClose: () => void; onS
               </div>
               <div className="flex justify-between text-gray-600">
                 <span>Time</span><span className="font-medium text-gray-900">{selectedSession.start_time} – {selectedSession.end_time}</span>
+              </div>
+              <div className="flex justify-between text-gray-600">
+                <span>Consultation Fee</span><span className="font-bold text-teal-600">Rs {selectedDoctor?.consultation_fee?.toLocaleString() || "0"}</span>
               </div>
               <div className="flex justify-between text-gray-600">
                 <span>Queue #</span><span className="font-bold text-blue-600">#{selectedSession.booked_count + 1}</span>

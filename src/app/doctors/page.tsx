@@ -62,9 +62,11 @@ export default function DoctorsPage() {
       const feeCache = getCachedFees();
       const merged = res.data.data
         .filter((d: Doctor) => !deletedIds.has(d.doctor_id))
-        .map((d: Doctor) => ({
+        .map((d: any) => ({
           ...d,
-          consultation_fee: feeCache[d.doctor_id] ?? d.consultation_fee
+          // Normalize status casing
+          status: d.status?.toLowerCase() === "active" ? "Active" : "Inactive",
+          consultation_fee: feeCache[d.doctor_id] ?? d.consultation_fee ?? 0
         }));
       setDoctors(merged);
       const filteredTotal = res.data.data.length - (res.data.data.filter((d: Doctor) => deletedIds.has(d.doctor_id)).length);

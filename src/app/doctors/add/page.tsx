@@ -8,6 +8,18 @@ import { getErrorMessage } from "@/lib/utils";
 import dayjs from "dayjs";
 import { ArrowLeft, Loader2, Stethoscope, Building2, MapPin } from "lucide-react";
 
+// ── localStorage helpers ────────────────────────────────────
+const FEE_CACHE_KEY = "doctor_fees_cache";
+function getCachedFees(): Record<string, number> {
+  try { return JSON.parse(localStorage.getItem(FEE_CACHE_KEY) || "{}"); }
+  catch { return {}; }
+}
+function cacheFee(doctorId: string, fee: number) {
+  const cache = getCachedFees();
+  cache[doctorId] = fee;
+  localStorage.setItem(FEE_CACHE_KEY, JSON.stringify(cache));
+}
+
 interface Hospital { hospital_id: string; name: string; }
 interface Branch { branch_id: string; name: string; }
 
@@ -52,7 +64,14 @@ export default function AddDoctorPage() {
       if (form.experience) payload.experience = form.experience;
       if (form.bio) payload.bio = form.bio;
 
-      await api.post("doctors", payload);
+      const res = await api.post("doctors", payload);
+      
+      // Cache the fee locally if we have a doctor_id back
+      const newDoc = res.data.data;
+      if (newDoc?.doctor_id) {
+        cacheFee(newDoc.doctor_id, Number(form.consultation_fee));
+      }
+
       toast.success("Doctor added successfully!");
       router.push("/doctors");
     } catch (err) {
