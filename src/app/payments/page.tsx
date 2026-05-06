@@ -52,35 +52,12 @@ function ReceiptModal({ payment, onClose }: { payment: Payment; onClose: () => v
   const printRef = useRef<HTMLDivElement>(null);
 
   function handlePrint() {
-    // 1. Create or get hidden iframe
-    let iframe = document.getElementById('print-iframe') as HTMLIFrameElement;
-    if (!iframe) {
-      iframe = document.createElement('iframe');
-      iframe.id = 'print-iframe';
-      iframe.style.position = 'fixed';
-      iframe.style.right = '0';
-      iframe.style.bottom = '0';
-      iframe.style.width = '0';
-      iframe.style.height = '0';
-      iframe.style.border = 'none';
-      iframe.style.visibility = 'hidden';
-      document.body.appendChild(iframe);
-    }
-
-    const doc = iframe.contentWindow?.document;
-    if (!doc) {
-      alert("Print failed: Could not access printer interface.");
-      return;
-    }
-    
-    // 2. Prepare the futuristic HTML content
+    // 1. Prepare the futuristic HTML content
     const receiptHtml = `
       <!DOCTYPE html>
       <html>
       <head>
         <title>Receipt - ${payment.payment_id.slice(0, 8).toUpperCase()}</title>
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Orbitron:wght@700&display=swap" rel="stylesheet">
         <style>
           :root {
@@ -98,6 +75,7 @@ function ReceiptModal({ payment, onClose }: { payment: Payment; onClose: () => v
             padding: 40px;
             background: #fff;
             -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
           .container {
             max-width: 500px;
@@ -236,8 +214,8 @@ function ReceiptModal({ payment, onClose }: { payment: Payment; onClose: () => v
             z-index: 0;
           }
           @media print {
-            @page { margin: 0; }
-            body { padding: 40px; }
+            @page { margin: 10mm; }
+            body { padding: 0; }
             .container { border: 1px solid var(--border); }
           }
         </style>
@@ -311,21 +289,24 @@ function ReceiptModal({ payment, onClose }: { payment: Payment; onClose: () => v
       </body>
       </html>`;
 
-    // 3. Write and print
+    // 2. Create temporary iframe
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+    
+    const doc = iframe.contentWindow?.document;
+    if (!doc) return;
+
     doc.open();
     doc.write(receiptHtml);
     doc.close();
 
-    // Wait for fonts and logo to load
-    const checkReady = setInterval(() => {
-      if (doc.readyState === 'complete') {
-        clearInterval(checkReady);
-        setTimeout(() => {
-          iframe.contentWindow?.focus();
-          iframe.contentWindow?.print();
-        }, 500);
-      }
-    }, 100);
+    // 3. Print and cleanup
+    iframe.contentWindow?.focus();
+    setTimeout(() => {
+      iframe.contentWindow?.print();
+      setTimeout(() => document.body.removeChild(iframe), 1000);
+    }, 600);
   }
 
   return (
