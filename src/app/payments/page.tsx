@@ -63,8 +63,9 @@ function ReceiptModal({ payment, onClose }: { payment: Payment; onClose: () => v
   const paymentTime = payment?.created_at ? dayjs(payment.created_at).format("h:mm A") : dayjs().format("h:mm A");
   const receiptId = payment?.payment_id?.slice(0, 8).toUpperCase() ?? "N/A";
   const totalAmount = payment?.total_amount?.toLocaleString() ?? "0";
-  const doctorFee = payment?.doctor_fee?.toLocaleString() ?? "0";
-  const hospitalCharge = payment?.hospital_charge?.toLocaleString() ?? "0";
+  // Fallback to doctor's consultation_fee if doctor_fee is 0
+  const doctorFee = (payment?.doctor_fee || payment?.appointment?.doctor?.consultation_fee || 0).toLocaleString();
+  const hospitalCharge = (payment?.hospital_charge || 0).toLocaleString();
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -273,16 +274,21 @@ function PaymentFormModal({ payment, onClose, onPaid }: {
 }) {
   const { user } = useAuthStore();
   const [method, setMethod] = useState("Cash");
+  const [doctorFee, setDoctorFee] = useState(payment.doctor_fee || payment.appointment?.doctor?.consultation_fee || 0);
+  const [hospitalCharge, setHospitalCharge] = useState(payment.hospital_charge || 0);
   const [loading, setLoading] = useState(false);
+  const totalAmount = Number(doctorFee) + Number(hospitalCharge);
 
   async function handlePay() {
     setLoading(true);
     try {
       const payload: Record<string, any> = {
-        method: method.toLowerCase(), // Must be lowercase for backend validation
-        amount: Number(payment.total_amount),
+        method: method.toLowerCase(), 
+        amount: totalAmount,
         hospital_id: user?.hospital_id,
         payment_id: payment.payment_id,
+        doctor_fee: Number(doctorFee),
+        hospital_charge: Number(hospitalCharge),
         date: dayjs().toISOString(),
       };
       
@@ -323,14 +329,29 @@ function PaymentFormModal({ payment, onClose, onPaid }: {
         </div>
         <div className="p-5 space-y-4">
           {/* Summary */}
-          <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 space-y-2 text-sm">
-            <div className="flex justify-between text-gray-600"><span>Patient</span><span className="font-medium text-gray-900">{payment.appointment.patient.name}</span></div>
-            <div className="flex justify-between text-gray-600"><span>Doctor</span><span className="font-medium text-gray-900">{payment.appointment.doctor.name}</span></div>
-            <div className="flex justify-between text-gray-600"><span>Doctor Fee</span><span>Rs {payment.doctor_fee?.toLocaleString()}</span></div>
-            <div className="flex justify-between text-gray-600"><span>Hospital Charge</span><span>Rs {payment.hospital_charge?.toLocaleString()}</span></div>
-            <div className="pt-1 border-t border-gray-200 flex justify-between font-bold text-base">
-              <span>Total</span>
-              <span className="text-blue-600">Rs {payment.total_amount.toLocaleString()}</span>
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-5 space-y-4 text-sm">
+            <div className="flex justify-between text-gray-600">
+              <span>Patient</span>
+              <span className="font-medium text-gray-900 dark:text-white">{payment.appointment.patient.name}</span>
+            </div>
+            
+            <div className="space-y-3 pt-2 border-t border-gray-100 dark:border-gray-700">
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Consultation Fee (Rs)</label>
+                <input type="number" value={doctorFee} onChange={(e) => setDoctorFee(Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm bg-white dark:bg-gray-900 focus:border-blue-400 focus:ring-1 focus:ring-blue-100" />
+              </div>
+              
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Hospital Charges (Rs)</label>
+                <input type="number" value={hospitalCharge} onChange={(e) => setHospitalCharge(Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm bg-white dark:bg-gray-900 focus:border-blue-400 focus:ring-1 focus:ring-blue-100" />
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center font-bold text-lg">
+              <span className="text-gray-900 dark:text-white">Total Amount</span>
+              <span className="text-blue-600 dark:text-blue-400">Rs {totalAmount.toLocaleString()}</span>
             </div>
           </div>
 
