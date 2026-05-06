@@ -52,9 +52,11 @@ function ReceiptModal({ payment, onClose }: { payment: Payment; onClose: () => v
   const printRef = useRef<HTMLDivElement>(null);
 
   function handlePrint() {
-    const content = printRef.current?.innerHTML ?? "";
-    const win = window.open("", "_blank");
-    if (!win) return;
+    const win = window.open("", "_blank", "width=800,height=900");
+    if (!win) {
+      alert("Popup blocked! Please allow popups for this site to print the receipt.");
+      return;
+    }
     
     // Create a base64 or absolute path for the logo. Since we're in a browser, /logo.png should work if served.
     // However, for maximum reliability in print, we'll use a futuristic CSS-based header if the image fails.
@@ -302,10 +304,14 @@ function ReceiptModal({ payment, onClose }: { payment: Payment; onClose: () => v
       </body>
       </html>`);
     win.document.close();
-    // Wait for fonts/images to load before printing
+    
+    // Wait for fonts and logo to load before printing
     setTimeout(() => {
-      win.print();
-    }, 500);
+      if (!win.closed) {
+        win.focus();
+        win.print();
+      }
+    }, 1000);
   }
 
   return (
