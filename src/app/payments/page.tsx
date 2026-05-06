@@ -47,6 +47,14 @@ const METHOD_ICONS: Record<string, React.ReactNode> = {
   Insurance:<Shield className="w-4 h-4" />,
 };
 
+// ─── helpers ──────────────────────────────────────────────
+function getCachedFee(doctorId: string): number {
+  try {
+    const cache = JSON.parse(localStorage.getItem("doctor_fees_cache") || "{}");
+    return Number(cache[doctorId]) || 0;
+  } catch { return 0; }
+}
+
 // ─── Receipt Modal ────────────────────────────────────────
 function ReceiptModal({ payment, onClose }: { payment: Payment; onClose: () => void; }) {
   const printRef = useRef<HTMLDivElement>(null);
@@ -63,8 +71,13 @@ function ReceiptModal({ payment, onClose }: { payment: Payment; onClose: () => v
   const paymentTime = payment?.created_at ? dayjs(payment.created_at).format("h:mm A") : dayjs().format("h:mm A");
   const receiptId = payment?.payment_id?.slice(0, 8).toUpperCase() ?? "N/A";
   const totalAmount = payment?.total_amount?.toLocaleString() ?? "0";
-  // Fallback to doctor's consultation_fee if doctor_fee is 0
-  const doctorFee = (payment?.doctor_fee || payment?.appointment?.doctor?.consultation_fee || 0).toLocaleString();
+  
+  // Fallback chain: payment field -> appointment field -> local cache -> 0
+  const feeValue = payment?.doctor_fee || 
+                   payment?.appointment?.doctor?.consultation_fee || 
+                   (payment?.appointment?.doctor?.doctor_id ? getCachedFee(payment.appointment.doctor.doctor_id) : 0);
+  
+  const doctorFee = feeValue.toLocaleString();
   const hospitalCharge = (payment?.hospital_charge || 0).toLocaleString();
 
   return (
@@ -274,7 +287,13 @@ function PaymentFormModal({ payment, onClose, onPaid }: {
 }) {
   const { user } = useAuthStore();
   const [method, setMethod] = useState("Cash");
-  const [doctorFee, setDoctorFee] = useState(payment.doctor_fee || payment.appointment?.doctor?.consultation_fee || 0);
+  
+  // Fallback chain for initial state
+  const initialFee = payment.doctor_fee || 
+                     payment.appointment?.doctor?.consultation_fee || 
+                     (payment.appointment?.doctor?.doctor_id ? getCachedFee(payment.appointment.doctor.doctor_id) : 0);
+
+  const [doctorFee, setDoctorFee] = useState(initialFee);
   const [hospitalCharge, setHospitalCharge] = useState(payment.hospital_charge || 0);
   const [loading, setLoading] = useState(false);
   const totalAmount = Number(doctorFee) + Number(hospitalCharge);
