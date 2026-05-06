@@ -55,84 +55,319 @@ function ReceiptModal({ payment, onClose }: { payment: Payment; onClose: () => v
     const content = printRef.current?.innerHTML ?? "";
     const win = window.open("", "_blank");
     if (!win) return;
+    
+    // Create a base64 or absolute path for the logo. Since we're in a browser, /logo.png should work if served.
+    // However, for maximum reliability in print, we'll use a futuristic CSS-based header if the image fails.
+    
     win.document.write(`
-      <html><head><title>Receipt</title>
-      <style>
-        body { font-family: 'Segoe UI', sans-serif; padding: 24px; color: #111; max-width: 400px; margin: 0 auto; }
-        h1 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
-        .sub { color: #666; font-size: 12px; margin-bottom: 16px; }
-        .divider { border-top: 1px dashed #ccc; margin: 12px 0; }
-        .row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
-        .total { font-weight: 700; font-size: 15px; }
-        .badge { background:#dcfce7; color:#166534; padding: 2px 8px; border-radius: 12px; font-size:11px; font-weight:600; }
-        @media print { @page { margin: 10mm; } }
-      </style></head>
-      <body>${content}</body></html>`);
+      <html>
+      <head>
+        <title>Receipt - ${payment.payment_id.slice(0, 8).toUpperCase()}</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Orbitron:wght@700&display=swap" rel="stylesheet">
+        <style>
+          :root {
+            --primary: #0066ff;
+            --accent: #00f2ff;
+            --text: #1a1a1a;
+            --muted: #666;
+            --border: #e5e7eb;
+          }
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body { 
+            font-family: 'Inter', sans-serif; 
+            color: var(--text); 
+            line-height: 1.5;
+            padding: 40px;
+            background: #fff;
+          }
+          .container {
+            max-width: 500px;
+            margin: 0 auto;
+            border: 1px solid var(--border);
+            padding: 32px;
+            position: relative;
+            overflow: hidden;
+          }
+          .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 32px;
+          }
+          .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+          }
+          .logo-img {
+            width: 48px;
+            height: 48px;
+            object-fit: contain;
+          }
+          .brand-name {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: -0.5px;
+          }
+          .receipt-title {
+            text-align: right;
+          }
+          .receipt-label {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 24px;
+            font-weight: 700;
+            color: #ddd;
+            text-transform: uppercase;
+            line-height: 1;
+          }
+          .receipt-id {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 4px;
+          }
+          .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 32px;
+          }
+          .info-box h4 {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--muted);
+            margin-bottom: 8px;
+          }
+          .info-box p {
+            font-size: 14px;
+            font-weight: 600;
+          }
+          .divider {
+            height: 1px;
+            background: linear-gradient(to right, var(--primary), var(--accent), transparent);
+            margin: 24px 0;
+            opacity: 0.3;
+          }
+          .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 32px;
+          }
+          .items-table th {
+            text-align: left;
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--muted);
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+          }
+          .items-table td {
+            padding: 12px 0;
+            font-size: 14px;
+            border-bottom: 1px solid #f9fafb;
+          }
+          .total-section {
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 2px solid var(--text);
+          }
+          .total-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+          .total-label {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+          }
+          .total-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary);
+          }
+          .footer {
+            margin-top: 40px;
+            text-align: center;
+          }
+          .qr-placeholder {
+            width: 80px;
+            height: 80px;
+            background: #f3f4f6;
+            margin: 0 auto 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #e5e7eb;
+            font-size: 10px;
+            color: #9ca3af;
+          }
+          .thanks {
+            font-size: 12px;
+            color: var(--muted);
+          }
+          .paid-stamp {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-15deg);
+            border: 4px solid rgba(0, 242, 255, 0.2);
+            padding: 8px 24px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 64px;
+            color: rgba(0, 242, 255, 0.1);
+            pointer-events: none;
+            text-transform: uppercase;
+            z-index: 0;
+          }
+          @media print {
+            body { padding: 0; }
+            .container { border: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="paid-stamp">PAID</div>
+          
+          <div class="header">
+            <div class="logo-container">
+              <img src="/logo.png" class="logo-img" onerror="this.style.display='none'">
+              <span class="brand-name">MediCore HMS</span>
+            </div>
+            <div class="receipt-title">
+              <div class="receipt-label">Receipt</div>
+              <div class="receipt-id">#${payment.payment_id.slice(0, 8).toUpperCase()}</div>
+            </div>
+          </div>
+
+          <div class="info-grid">
+            <div class="info-box">
+              <h4>Patient Details</h4>
+              <p>${payment.appointment.patient.name}</p>
+              <div style="font-size: 11px; color: #666; margin-top: 2px;">ID: ${payment.appointment.patient.patient_id.slice(0, 6).toUpperCase()}</div>
+            </div>
+            <div class="info-box">
+              <h4>Date & Time</h4>
+              <p>${dayjs(payment.created_at).format("MMM D, YYYY")}</p>
+              <div style="font-size: 11px; color: #666; margin-top: 2px;">${dayjs(payment.created_at).format("h:mm A")}</div>
+            </div>
+          </div>
+
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th style="text-align: right;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <strong>Consultation Fee</strong><br>
+                  <span style="font-size: 12px; color: #666;">Dr. ${payment.appointment.doctor.name} (${payment.appointment.doctor.specialization})</span>
+                </td>
+                <td style="text-align: right;">Rs ${payment.doctor_fee?.toLocaleString() ?? "0"}</td>
+              </tr>
+              <tr>
+                <td>
+                  <strong>Hospital Service Charges</strong><br>
+                  <span style="font-size: 12px; color: #666;">Facility and administrative fees</span>
+                </td>
+                <td style="text-align: right;">Rs ${payment.hospital_charge?.toLocaleString() ?? "0"}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="total-section">
+            <div class="total-row">
+              <span class="total-label">Total Paid</span>
+              <span class="total-value">Rs ${payment.total_amount.toLocaleString()}</span>
+            </div>
+          </div>
+
+          <div class="footer">
+            <div class="qr-placeholder">
+              <div style="text-align: center;">
+                <div style="font-weight: bold; margin-bottom: 2px;">VERIFY</div>
+                ${payment.payment_id.slice(0, 4)}
+              </div>
+            </div>
+            <p class="thanks">Thank you for choosing MediCore HMS</p>
+            <p style="font-size: 10px; color: #999; margin-top: 8px;">Digital Receipt Generated on ${dayjs().format("YYYY-MM-DD HH:mm")}</p>
+          </div>
+        </div>
+      </body>
+      </html>`);
     win.document.close();
-    win.print();
+    // Wait for fonts/images to load before printing
+    setTimeout(() => {
+      win.print();
+    }, 500);
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 animate-fade-in" onClick={onClose} />
-      <div className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-sm animate-slide-in">
-        <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-800">
-          <h2 className="font-bold text-gray-900 flex items-center gap-2"><Receipt className="w-4 h-4 text-blue-500" />Receipt</h2>
-          <div className="flex items-center gap-2">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose} />
+      <div className="relative bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-sm animate-slide-in overflow-hidden border border-white/20">
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 via-cyan-400 to-blue-600"></div>
+        
+        <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-800">
+          <h2 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
+              <Receipt className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            </div>
+            Receipt
+          </h2>
+          <div className="flex items-center gap-3">
             <button onClick={handlePrint}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition">
-              <Printer className="w-3.5 h-3.5" /> Print
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-all shadow-lg shadow-blue-500/25 active:scale-95">
+              <Printer className="w-4 h-4" /> Print
             </button>
-            <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 transition"><X className="w-4 h-4" /></button>
+            <button onClick={onClose} className="p-2 rounded-xl text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+              <X className="w-5 h-5" />
+            </button>
           </div>
         </div>
 
-        <div ref={printRef} className="p-5">
-          <div className="text-center mb-4">
-            <h1 className="font-bold text-gray-900 text-lg">MediCore HMS</h1>
-            <p className="text-gray-500 text-xs">Hospital Appointment Receipt</p>
-          </div>
-
-          <div className="border-t border-dashed border-gray-200 my-3" />
-
-          <div className="space-y-1.5 text-sm mb-3">
-            <div className="flex justify-between"><span className="text-gray-500">Receipt #</span><span className="font-medium">{payment.payment_id.slice(0, 8).toUpperCase()}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Date</span><span className="font-medium">{dayjs(payment.created_at).format("MMM D, YYYY h:mm A")}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Patient</span><span className="font-medium">{payment.appointment.patient.name}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Doctor</span><span className="font-medium">{payment.appointment.doctor.name}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Appointment</span><span className="font-medium">{dayjs(payment.appointment.session.date).format("MMM D, YYYY")}</span></div>
-          </div>
-
-          <div className="border-t border-dashed border-gray-200 my-3" />
-
-          <div className="space-y-1.5 text-sm mb-3">
-            <div className="flex justify-between"><span className="text-gray-500">Doctor Fee</span><span>Rs {payment.doctor_fee?.toLocaleString() ?? "—"}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Hospital Charge</span><span>Rs {payment.hospital_charge?.toLocaleString() ?? "—"}</span></div>
-          </div>
-
-          <div className="border-t border-dashed border-gray-200 my-3" />
-
-          <div className="flex justify-between font-bold text-base">
-            <span>Total Paid</span>
-            <span className="text-blue-600">Rs {payment.total_amount.toLocaleString()}</span>
-          </div>
-
-          {payment.transactions && payment.transactions.length > 0 && (
-            <div className="mt-4 pt-3 border-t border-gray-100">
-              <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 text-center">Transaction History</h4>
-              <div className="space-y-1">
-                {payment.transactions.map((t, i) => (
-                  <div key={i} className="flex justify-between text-[11px]">
-                    <span className="text-gray-500">{t.method} · {dayjs(t.date).format("MMM D")}</span>
-                    <span className="font-semibold">Rs {t.amount.toLocaleString()}</span>
-                  </div>
-                ))}
+        <div ref={printRef} className="p-6">
+          {/* Visual Preview for the Modal */}
+          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 space-y-4">
+            <div className="flex justify-between items-start">
+              <div className="flex items-center gap-2">
+                <img src="/logo.png" className="w-8 h-8 object-contain" alt="Logo" />
+                <span className="font-bold text-blue-600 dark:text-blue-400 tracking-tight">MediCore HMS</span>
+              </div>
+              <div className="text-right">
+                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Receipt No</div>
+                <div className="text-sm font-mono font-bold text-gray-900 dark:text-white">{payment.payment_id.slice(0, 8).toUpperCase()}</div>
               </div>
             </div>
-          )}
 
-          <div className="border-t border-dashed border-gray-200 my-3" />
-          <div className="text-center text-xs text-gray-400">Thank you for visiting us!</div>
+            <div className="space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500 dark:text-gray-400">Patient</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{payment.appointment.patient.name}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500 dark:text-gray-400">Date</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{dayjs(payment.created_at).format("MMM D, YYYY")}</span>
+              </div>
+            </div>
+
+            <div className="border-t border-dashed border-gray-200 dark:border-gray-700 pt-3">
+              <div className="flex justify-between items-baseline">
+                <span className="text-sm font-bold text-gray-900 dark:text-white">Amount Paid</span>
+                <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">Rs {payment.total_amount.toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 text-center">
+            <p className="text-xs text-gray-400">The printed receipt will include full itemized breakdown and futuristic branding.</p>
+          </div>
         </div>
       </div>
     </div>
