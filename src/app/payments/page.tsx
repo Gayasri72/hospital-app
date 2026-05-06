@@ -52,19 +52,35 @@ function ReceiptModal({ payment, onClose }: { payment: Payment; onClose: () => v
   const printRef = useRef<HTMLDivElement>(null);
 
   function handlePrint() {
-    const win = window.open("", "_blank", "width=800,height=900");
-    if (!win) {
-      alert("Popup blocked! Please allow popups for this site to print the receipt.");
+    // 1. Create or get hidden iframe
+    let iframe = document.getElementById('print-iframe') as HTMLIFrameElement;
+    if (!iframe) {
+      iframe = document.createElement('iframe');
+      iframe.id = 'print-iframe';
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = 'none';
+      iframe.style.visibility = 'hidden';
+      document.body.appendChild(iframe);
+    }
+
+    const doc = iframe.contentWindow?.document;
+    if (!doc) {
+      alert("Print failed: Could not access printer interface.");
       return;
     }
     
-    // Create a base64 or absolute path for the logo. Since we're in a browser, /logo.png should work if served.
-    // However, for maximum reliability in print, we'll use a futuristic CSS-based header if the image fails.
-    
-    win.document.write(`
+    // 2. Prepare the futuristic HTML content
+    const receiptHtml = `
+      <!DOCTYPE html>
       <html>
       <head>
         <title>Receipt - ${payment.payment_id.slice(0, 8).toUpperCase()}</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Orbitron:wght@700&display=swap" rel="stylesheet">
         <style>
           :root {
@@ -81,6 +97,7 @@ function ReceiptModal({ payment, onClose }: { payment: Payment; onClose: () => v
             line-height: 1.5;
             padding: 40px;
             background: #fff;
+            -webkit-print-color-adjust: exact;
           }
           .container {
             max-width: 500px;
@@ -145,12 +162,6 @@ function ReceiptModal({ payment, onClose }: { payment: Payment; onClose: () => v
           .info-box p {
             font-size: 14px;
             font-weight: 600;
-          }
-          .divider {
-            height: 1px;
-            background: linear-gradient(to right, var(--primary), var(--accent), transparent);
-            margin: 24px 0;
-            opacity: 0.3;
           }
           .items-table {
             width: 100%;
@@ -225,18 +236,18 @@ function ReceiptModal({ payment, onClose }: { payment: Payment; onClose: () => v
             z-index: 0;
           }
           @media print {
-            body { padding: 0; }
-            .container { border: none; }
+            @page { margin: 0; }
+            body { padding: 40px; }
+            .container { border: 1px solid var(--border); }
           }
         </style>
       </head>
       <body>
         <div class="container">
           <div class="paid-stamp">PAID</div>
-          
           <div class="header">
             <div class="logo-container">
-              <img src="/logo.png" class="logo-img" onerror="this.style.display='none'">
+              <img src="/logo.png" class="logo-img" alt="Logo">
               <span class="brand-name">MediCore HMS</span>
             </div>
             <div class="receipt-title">
@@ -244,7 +255,6 @@ function ReceiptModal({ payment, onClose }: { payment: Payment; onClose: () => v
               <div class="receipt-id">#${payment.payment_id.slice(0, 8).toUpperCase()}</div>
             </div>
           </div>
-
           <div class="info-grid">
             <div class="info-box">
               <h4>Patient Details</h4>
@@ -257,7 +267,6 @@ function ReceiptModal({ payment, onClose }: { payment: Payment; onClose: () => v
               <div style="font-size: 11px; color: #666; margin-top: 2px;">${dayjs(payment.created_at).format("h:mm A")}</div>
             </div>
           </div>
-
           <table class="items-table">
             <thead>
               <tr>
@@ -282,14 +291,12 @@ function ReceiptModal({ payment, onClose }: { payment: Payment; onClose: () => v
               </tr>
             </tbody>
           </table>
-
           <div class="total-section">
             <div class="total-row">
               <span class="total-label">Total Paid</span>
               <span class="total-value">Rs ${payment.total_amount.toLocaleString()}</span>
             </div>
           </div>
-
           <div class="footer">
             <div class="qr-placeholder">
               <div style="text-align: center;">
@@ -302,16 +309,23 @@ function ReceiptModal({ payment, onClose }: { payment: Payment; onClose: () => v
           </div>
         </div>
       </body>
-      </html>`);
-    win.document.close();
-    
-    // Wait for fonts and logo to load before printing
-    setTimeout(() => {
-      if (!win.closed) {
-        win.focus();
-        win.print();
+      </html>`;
+
+    // 3. Write and print
+    doc.open();
+    doc.write(receiptHtml);
+    doc.close();
+
+    // Wait for fonts and logo to load
+    const checkReady = setInterval(() => {
+      if (doc.readyState === 'complete') {
+        clearInterval(checkReady);
+        setTimeout(() => {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+        }, 500);
       }
-    }, 1000);
+    }, 100);
   }
 
   return (
