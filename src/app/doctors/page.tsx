@@ -66,6 +66,7 @@ export default function DoctorsPage() {
           ...d,
           // Normalize status casing
           status: d.status?.toLowerCase() === "active" ? "Active" : "Inactive",
+          phone: d.contact_number || d.phone, // Handle both field names
           consultation_fee: feeCache[d.doctor_id] ?? d.consultation_fee ?? 0
         }));
       setDoctors(merged);

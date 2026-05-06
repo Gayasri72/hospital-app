@@ -127,6 +127,7 @@ export default function DoctorDetailPage() {
         const cachedFee = getCachedFee(doctorId);
         const merged = { 
           ...d, 
+          phone: d.contact_number || d.phone, // Map backend field to frontend
           status: d.status?.toLowerCase() === "active" ? "Active" : "Inactive",
           consultation_fee: cachedFee || d.consultation_fee || 0 
         };
@@ -188,13 +189,14 @@ export default function DoctorDetailPage() {
       const payload: any = {
         name: editForm.name,
         specialization: editForm.specialization,
-        status: editForm.status,
+        status: editForm.status?.toLowerCase(),
         consultation_fee: Number(editForm.consultation_fee),
-        phone: editForm.phone,
+        contact_number: editForm.phone, // Backend expects contact_number
         email: editForm.email,
         qualifications: editForm.profile?.qualifications,
         experience: editForm.profile?.experience,
-        bio: editForm.profile?.bio
+        bio: editForm.profile?.bio,
+        effective_from: dayjs().format("YYYY-MM-DD") // Backend often requires this for fee-related updates
       };
       
       const res = await api.put(`doctors/${doctorId}`, payload);
