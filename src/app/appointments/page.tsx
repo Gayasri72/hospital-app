@@ -25,6 +25,7 @@ interface Appointment {
 interface Patient { patient_id: string; name: string; nic: string; phone: string; }
 interface Doctor  { 
   doctor_id: string; 
+  id?: string;
   name: string; 
   specialization: string; 
   consultation_fee?: number; 
