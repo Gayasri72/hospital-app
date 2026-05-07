@@ -100,7 +100,7 @@ function CreateAppointmentModal({ onClose, onSaved }: { onClose: () => void; onS
   useEffect(() => {
     if (step === 3 && selectedDoctor) {
       api.get("sessions", {
-        params: { doctor_id: selectedDoctor.doctor_id, status: "open", limit: 20 }
+        params: { doctor_id: selectedDoctor.doctor_id, limit: 100 }
       }).then((r) => setSessions(r.data.data)).catch(() => {});
     }
   }, [step, selectedDoctor]);
