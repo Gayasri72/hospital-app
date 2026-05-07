@@ -97,20 +97,35 @@ function CreateAppointmentModal({ onClose, onSaved }: { onClose: () => void; onS
   }, [step, doctorSearch]);
 
   // Load sessions for selected doctor
+  const [sessionsLoading, setSessionsLoading] = useState(false);
   useEffect(() => {
     if (step === 3 && selectedDoctor) {
+      setSessionsLoading(true);
       // Fetch all sessions and filter in frontend for maximum reliability
       api.get("sessions/", {
         params: { limit: 1000 }
       }).then((r) => {
         const allSessions = r.data.data || [];
-        // Filter by doctor_id (handling both string and object doctor references)
+        // Filter by doctor (handling multiple ID field names and name fallback)
         const filtered = allSessions.filter((s: any) => {
           const docId = s.doctor_id || s.doctor?.doctor_id || s.doctor?.id;
-          return String(docId) === String(selectedDoctor.doctor_id);
+          const selectedId = selectedDoctor.doctor_id || selectedDoctor.id;
+          
+          if (docId && selectedId && String(docId) === String(selectedId)) return true;
+          
+          // Fallback to name matching if IDs are missing or inconsistent
+          const docName = s.doctor_name || s.doctor?.name;
+          const selectedName = selectedDoctor.name;
+          if (docName && selectedName && docName.toLowerCase() === selectedName.toLowerCase()) return true;
+          
+          return false;
         });
         setSessions(filtered);
-      }).catch(() => {});
+      }).catch(() => {
+        setSessions([]);
+      }).finally(() => {
+        setSessionsLoading(false);
+      });
     }
   }, [step, selectedDoctor]);
 
@@ -238,7 +253,12 @@ function CreateAppointmentModal({ onClose, onSaved }: { onClose: () => void; onS
                   </button>
                 </div>
               )}
-              {sessions.length === 0 ? (
+              {sessionsLoading ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Loader2 className="w-6 h-6 animate-spin text-blue-500 mb-2" />
+                  <p className="text-xs text-gray-400 font-medium font-sans">Connecting to sessions...</p>
+                </div>
+              ) : sessions.length === 0 ? (
                 <p className="text-sm text-center text-gray-400 py-4">No open sessions available for this doctor</p>
               ) : sessions.map((s) => {
                 const isFull = s.booked_count >= s.max_patients;
