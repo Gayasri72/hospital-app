@@ -102,9 +102,9 @@ function CreateAppointmentModal({ onClose, onSaved }: { onClose: () => void; onS
   useEffect(() => {
     if (step === 3 && selectedDoctor) {
       setSessionsLoading(true);
-      // Fetch all sessions (removed trailing slash for compatibility)
+      // Fetch sessions using exact same params as main Sessions page
       api.get("sessions", {
-        params: { limit: 1000 }
+        params: { limit: 100 }
       }).then((r) => {
         const allSessions = r.data.data || [];
         // Filter by doctor (extremely robust matching)
@@ -122,7 +122,10 @@ function CreateAppointmentModal({ onClose, onSaved }: { onClose: () => void; onS
           if (docName && selectedName && docName === selectedName) return true;
           
           return false;
-        });
+        }).map((s: any) => ({
+          ...s,
+          date: s.session_date || s.date // Ensure date field is present for rendering
+        }));
         setSessions(filtered);
       }).catch(() => {
         setSessions([]);
