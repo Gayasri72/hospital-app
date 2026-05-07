@@ -64,7 +64,7 @@ export default function AddDoctorPage() {
       if (form.experience) payload.experience = form.experience;
       if (form.bio) payload.bio = form.bio;
 
-      const res = await api.post("doctors", payload);
+      const res = await api.post("doctors/", payload);
       
       // Cache the fee locally if we have a doctor_id back
       const newDoc = res.data.data;

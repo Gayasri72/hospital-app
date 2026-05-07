@@ -122,14 +122,22 @@ export default function DoctorDetailPage() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await api.get(`doctors/${doctorId}`);
+        const res = await api.get(`doctors/${doctorId}/`);
         const d = res.data.data;
         const cachedFee = getCachedFee(doctorId);
         const merged = { 
           ...d, 
-          phone: d.contact_number || d.phone, // Map backend field to frontend
+          phone: d.contact_number || d.phone, 
           status: d.status?.toLowerCase() === "active" ? "Active" : "Inactive",
-          consultation_fee: cachedFee || d.consultation_fee || 0 
+          consultation_fee: cachedFee || d.consultation_fee || 0,
+          // Handle both flat and nested profile fields
+          profile: d.profile || {
+            qualifications: d.qualifications,
+            experience: d.experience,
+            bio: d.bio,
+            contact_number: d.contact_number,
+            email: d.email
+          }
         };
         setDoctor(merged);
         setEditForm(merged);
@@ -147,7 +155,7 @@ export default function DoctorDetailPage() {
   useEffect(() => {
     if (activeTab !== "sessions") return;
     setSessionsLoading(true);
-    api.get("sessions", { params: { doctor_id: doctorId, limit: 50 } })
+    api.get("sessions/", { params: { doctor_id: doctorId, limit: 50 } })
       .then(r => setSessions(r.data.data))
       .catch(() => setSessions([]))
       .finally(() => setSessionsLoading(false));
@@ -157,7 +165,7 @@ export default function DoctorDetailPage() {
   useEffect(() => {
     if (activeTab !== "appointments") return;
     setAppointmentsLoading(true);
-    api.get("appointments", { params: { doctor_id: doctorId, limit: 50 } })
+    api.get("appointments/", { params: { doctor_id: doctorId, limit: 50 } })
       .then(r => setAppointments(r.data.data))
       .catch(() => setAppointments([]))
       .finally(() => setAppointmentsLoading(false));
@@ -167,7 +175,7 @@ export default function DoctorDetailPage() {
   useEffect(() => {
     if (activeTab !== "availability") return;
     setAvailabilityLoading(true);
-    api.get(`doctors/${doctorId}/availability`)
+    api.get(`doctors/${doctorId}/availability/`)
       .then(r => setAvailability(r.data.data))
       .catch(() => setAvailability([]))
       .finally(() => setAvailabilityLoading(false));
@@ -177,7 +185,7 @@ export default function DoctorDetailPage() {
   useEffect(() => {
     if (activeTab !== "exceptions") return;
     setExceptionsLoading(true);
-    api.get(`doctors/${doctorId}/exceptions`)
+    api.get(`doctors/${doctorId}/exceptions/`)
       .then(r => setExceptions(r.data.data))
       .catch(() => setExceptions([]))
       .finally(() => setExceptionsLoading(false));
@@ -191,15 +199,15 @@ export default function DoctorDetailPage() {
         specialization: editForm.specialization,
         status: editForm.status?.toLowerCase(),
         consultation_fee: Number(editForm.consultation_fee),
-        contact_number: editForm.phone, // Backend expects contact_number
+        contact_number: editForm.phone, 
         email: editForm.email,
         qualifications: editForm.profile?.qualifications,
         experience: editForm.profile?.experience,
         bio: editForm.profile?.bio,
-        effective_from: dayjs().format("YYYY-MM-DD") // Backend often requires this for fee-related updates
+        effective_from: dayjs().format("YYYY-MM-DD") 
       };
       
-      const res = await api.put(`doctors/${doctorId}`, payload);
+      const res = await api.put(`doctors/${doctorId}/`, payload);
       cacheFee(doctorId, payload.consultation_fee);
       
       // Re-fetch to confirm update
@@ -518,7 +526,7 @@ export default function DoctorDetailPage() {
           availability={availability} 
           loading={availabilityLoading} 
           onUpdated={() => {
-            api.get(`doctors/${doctorId}/availability`).then(r => setAvailability(r.data.data));
+            api.get(`doctors/${doctorId}/availability/`).then(r => setAvailability(r.data.data));
           }}
         />
       )}
@@ -530,7 +538,7 @@ export default function DoctorDetailPage() {
           exceptions={exceptions} 
           loading={exceptionsLoading} 
           onUpdated={() => {
-            api.get(`doctors/${doctorId}/exceptions`).then(r => setExceptions(r.data.data));
+            api.get(`doctors/${doctorId}/exceptions/`).then(r => setExceptions(r.data.data));
           }}
         />
       )}
@@ -585,7 +593,7 @@ function AvailabilityTab({ doctorId, availability, loading, onUpdated }: {
       const activeSchedule = schedule.filter(s => s.active).map(({ day_of_week, start_time, end_time }) => ({
         day_of_week, start_time, end_time
       }));
-      await api.post(`doctors/${doctorId}/availability`, { schedule: activeSchedule });
+      await api.post(`doctors/${doctorId}/availability/`, { schedule: activeSchedule });
       toast.success("Schedule updated successfully");
       setManaging(false);
       onUpdated();

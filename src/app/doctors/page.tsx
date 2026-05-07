@@ -98,7 +98,7 @@ export default function DoctorsPage() {
   async function handleDelete(id: string) {
     if (!window.confirm("Are you sure you want to delete this doctor?")) return;
     try {
-      await api.delete(`doctors/${id}`);
+      await api.delete(`doctors/${id}/`);
       markDeleted(id); // persist deletion
       toast.success("Doctor deleted");
       fetchDoctors();
