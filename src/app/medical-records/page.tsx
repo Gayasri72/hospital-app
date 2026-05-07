@@ -83,11 +83,11 @@ function MedicalRecordForm({ appointment, onSaved, onClose }: {
         prescriptions: prescriptions.filter((p) => p.medicine_name?.trim()),
       };
       if (isEdit) {
-        await api.put(`medical-records/${appointment.medical_record!.record_id}`, payload);
+        await api.put(`medical-records/${appointment.medical_record!.record_id}/`, payload);
       } else {
-        await api.post("medical-records", payload);
+        await api.post("medical-records/", payload);
         // Mark appointment as completed
-        await api.patch(`appointments/${appointment.appointment_id}/status`, { status: "Completed" }).catch(() => {});
+        await api.patch(`appointments/${appointment.appointment_id}/status/`, { status: "Completed" }).catch(() => {});
       }
       toast.success(isEdit ? "Record updated!" : "Medical record saved!");
       onSaved();
@@ -213,7 +213,7 @@ function AppointmentRow({ apt, onRecord, onRefresh }: {
 
   async function updateStatus(status: string) {
     try {
-      await api.patch(`appointments/${apt.appointment_id}/status`, { status });
+      await api.patch(`appointments/${apt.appointment_id}/status/`, { status });
       toast.success(`Status updated to ${status}`);
       onRefresh();
     } catch (err) {
