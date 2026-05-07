@@ -18,7 +18,7 @@ interface Appointment {
   status: "Booked" | "Confirmed" | "Arrived" | "Completed" | "Cancelled" | "No Show";
   created_at: string;
   patient: { patient_id: string; name: string; phone: string };
-  doctor: { doctor_id: string; name: string; specialization: string };
+  doctor: { doctor_id: string; name: string; specialization: string; consultation_fee?: number };
   session: { session_id: string; date: string; start_time: string; end_time: string };
 }
 

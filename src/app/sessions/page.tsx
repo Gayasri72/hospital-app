@@ -19,13 +19,14 @@ interface Session {
   max_patients: number;
   booked_count: number;
   status: string;
-  doctor: { doctor_id: string; name: string; specialization: string; };
+  doctor: { doctor_id: string; name: string; specialization: string; consultation_fee?: number };
 }
 
 interface Doctor { 
   doctor_id: string; 
   name: string; 
   specialization: string;
+  consultation_fee?: number;
 }
 
 const STATUS_STYLES: Record<string, string> = {
