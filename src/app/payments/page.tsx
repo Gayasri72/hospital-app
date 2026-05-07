@@ -352,7 +352,7 @@ function PaymentFormModal({ payment, onClose, onPaid }: {
 
       // 2. Process the transaction
       try {
-        await api.post(`payments/${payment.payment_id}/transactions/`, payload);
+        await api.post(`payments/${payment.payment_id}/transactions`, payload);
       } catch (transErr: any) {
         const isBalanceError = transErr.response?.data?.code === 'AMOUNT_EXCEEDS_BALANCE' || 
                               transErr.response?.data?.message?.includes('exceeds remaining balance');
