@@ -437,8 +437,12 @@ export default function AppointmentsPage() {
       // Auto-create payment if completed
       if (newStatus === "Completed" && apt.status !== "Completed") {
         try {
+          const feeCache = JSON.parse(localStorage.getItem("doctor_fees_cache") || "{}");
+          const doctorFee = Number(feeCache[apt.doctor.doctor_id]) || 0;
           await api.post("payments/", {
             appointment_id: id,
+            doctor_fee: doctorFee,
+            total_amount: doctorFee + 500
           });
           toast.success("Payment invoice automatically generated!");
         } catch (paymentErr) {
