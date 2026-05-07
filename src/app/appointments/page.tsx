@@ -298,6 +298,70 @@ function CreateAppointmentModal({ onClose, onSaved }: { onClose: () => void; onS
   );
 }
 
+// ─── Edit Appointment Modal ────────────────────────────────
+function EditAppointmentModal({ appointment, onClose, onSaved }: { 
+  appointment: Appointment; 
+  onClose: () => void; 
+  onSaved: () => void;
+}) {
+  const [status, setStatus] = useState(appointment.status);
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await api.patch(`appointments/${appointment.appointment_id}/status`, { status });
+      toast.success("Appointment updated successfully");
+      onSaved();
+      onClose();
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 animate-fade-in" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm animate-slide-in">
+        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Edit Appointment</h2>
+            <p className="text-sm text-gray-500 mt-0.5">#{appointment.appointment_id} · {appointment.patient.name}</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-lg text-gray-400 hover:bg-gray-100 transition"><X className="w-5 h-5" /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Update Status</label>
+            <select value={status} onChange={(e) => setStatus(e.target.value as any)}
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all">
+              {ALL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          
+          <div className="bg-blue-50/50 rounded-xl p-4 space-y-2 text-xs">
+            <div className="flex justify-between"><span className="text-gray-500">Doctor</span><span className="font-semibold text-gray-900">{appointment.doctor.name}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Date</span><span className="font-semibold text-gray-900">{dayjs(appointment.session.date).format("MMM D, YYYY")}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Time</span><span className="font-semibold text-gray-900">{appointment.session.start_time}</span></div>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose}
+              className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">Cancel</button>
+            <button type="submit" disabled={loading}
+              className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2">
+              {loading ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : "Save Changes"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────
 export default function AppointmentsPage() {
   const router = useRouter();
@@ -310,6 +374,7 @@ export default function AppointmentsPage() {
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState({ total: 0, page: 1, limit: 20 });
   const [modalOpen, setModalOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<Appointment | null>(null);
 
   const fetchAppointments = useCallback(async () => {
     setLoading(true);
@@ -518,11 +583,11 @@ export default function AppointmentsPage() {
                             <CreditCard className="w-4 h-4" />
                           </button>
                         )}
-                        <button onClick={() => router.push(`/doctors/${apt.doctor.doctor_id}`)}
-                          className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition" title="View Doctor Profile">
+                        <button onClick={() => router.push(`/patients/${apt.patient.patient_id}`)}
+                          className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition" title="View Patient">
                           <Eye className="w-4 h-4" />
                         </button>
-                        <button onClick={() => toast.success("Edit Appointment (Coming Soon)")}
+                        <button onClick={() => setEditTarget(apt)}
                           className="p-1.5 rounded-lg text-gray-400 hover:text-green-600 hover:bg-green-50 transition" title="Edit">
                           <Pencil className="w-4 h-4" />
                         </button>
@@ -559,9 +624,8 @@ export default function AppointmentsPage() {
         )}
       </div>
 
-      {modalOpen && (
-        <CreateAppointmentModal onClose={() => setModalOpen(false)} onSaved={fetchAppointments} />
-      )}
+      {modalOpen && <CreateAppointmentModal onClose={() => setModalOpen(false)} onSaved={fetchAppointments} />}
+      {editTarget && <EditAppointmentModal appointment={editTarget} onClose={() => setEditTarget(null)} onSaved={fetchAppointments} />}
     </div>
   );
 }

@@ -298,6 +298,22 @@ function PaymentFormModal({ payment, onClose, onPaid }: {
   const [loading, setLoading] = useState(false);
   const totalAmount = Number(doctorFee) + Number(hospitalCharge);
 
+  // Auto-fetch fee if missing
+  useEffect(() => {
+    if (doctorFee === 0 && payment.appointment?.doctor?.doctor_id) {
+      api.get(`doctors/${payment.appointment.doctor.doctor_id}`).then(res => {
+        const fee = res.data.data?.consultation_fee;
+        if (fee) {
+          setDoctorFee(fee);
+          // Sync with cache
+          const cache = JSON.parse(localStorage.getItem("doctor_fees_cache") || "{}");
+          cache[payment.appointment.doctor.doctor_id] = fee;
+          localStorage.setItem("doctor_fees_cache", JSON.stringify(cache));
+        }
+      }).catch(() => {});
+    }
+  }, [payment.appointment?.doctor?.doctor_id, doctorFee]);
+
   async function handlePay() {
     setLoading(true);
     try {
@@ -428,11 +444,18 @@ export default function PaymentsPage() {
       
       const res = await api.get("payments", { params });
       
-      // Normalize statuses for consistent UI
-      const normalized = res.data.data.map((p: any) => ({
-        ...p,
-        status: p.status?.charAt(0).toUpperCase() + p.status?.slice(1).toLowerCase()
-      }));
+      // Normalize statuses and merge cached fees
+      const feeCache = JSON.parse(localStorage.getItem("doctor_fees_cache") || "{}");
+      const normalized = res.data.data.map((p: any) => {
+        const doctorId = p.appointment?.doctor?.doctor_id;
+        const cachedFee = doctorId ? Number(feeCache[doctorId]) : 0;
+        
+        return {
+          ...p,
+          status: p.status?.charAt(0).toUpperCase() + p.status?.slice(1).toLowerCase(),
+          doctor_fee: p.doctor_fee || p.appointment?.doctor?.consultation_fee || cachedFee || 0
+        };
+      });
 
       setPayments(normalized);
       setMeta(res.data.meta ?? { total: res.data.data.length, page: 1, limit: 20 });

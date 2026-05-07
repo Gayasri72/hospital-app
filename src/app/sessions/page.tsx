@@ -204,6 +204,105 @@ function CreateSessionModal({ user, onClose, onSaved }: { user: any; onClose: ()
   );
 }
 
+// ─── Edit Session Modal ──────────────────────────────────
+function EditSessionModal({ session, onClose, onSaved }: { 
+  session: Session; 
+  onClose: () => void; 
+  onSaved: () => void;
+}) {
+  const [form, setForm] = useState({
+    date: session.date || (session as any).session_date || dayjs().format("YYYY-MM-DD"),
+    start_time: session.start_time,
+    end_time: session.end_time,
+    status: session.status || "Open",
+  });
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const to24h = (t: string) => {
+        if (!t) return t;
+        if (/^\d{2}:\d{2}$/.test(t)) return t;
+        const [time, period] = t.split(" ");
+        let [h, m] = time.split(":").map(Number);
+        if (period?.toUpperCase() === "PM" && h !== 12) h += 12;
+        if (period?.toUpperCase() === "AM" && h === 12) h = 0;
+        return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+      };
+
+      const payload = {
+        session_date: form.date,
+        start_time: to24h(form.start_time),
+        end_time: to24h(form.end_time),
+        status: form.status,
+      };
+
+      await api.patch(`sessions/${session.session_id}`, payload);
+      toast.success("Session updated successfully!");
+      onSaved();
+      onClose();
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 animate-fade-in" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md animate-slide-in">
+        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Edit Session</h2>
+            <p className="text-sm text-gray-500 mt-0.5">Update session details for Dr. {session.doctor?.name}</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-lg text-gray-400 hover:bg-gray-100 transition"><X className="w-5 h-5" /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Session Date</label>
+            <input type="date" required value={form.date} onChange={(e) => setForm(f => ({ ...f, date: e.target.value }))}
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Start Time</label>
+              <input type="time" required value={form.start_time} onChange={(e) => setForm(f => ({ ...f, start_time: e.target.value }))}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">End Time</label>
+              <input type="time" required value={form.end_time} onChange={(e) => setForm(f => ({ ...f, end_time: e.target.value }))}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
+            <select value={form.status} onChange={(e) => setForm(f => ({ ...f, status: e.target.value }))}
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all">
+              <option value="Open">Open</option>
+              <option value="Full">Full</option>
+              <option value="Closed">Closed</option>
+              <option value="Completed">Completed</option>
+            </select>
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose}
+              className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">Cancel</button>
+            <button type="submit" disabled={loading}
+              className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2">
+              {loading ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : "Save Changes"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── Calendar View ───────────────────────────────────────
 function CalendarView({ sessions, onDayClick }: {
   sessions: Session[];
@@ -216,8 +315,9 @@ function CalendarView({ sessions, onDayClick }: {
   const today = dayjs().format("YYYY-MM-DD");
 
   const sessionsByDate = sessions.reduce<Record<string, Session[]>>((acc, s) => {
-    if (!s.date) return acc;
-    const d = dayjs(s.date).format("YYYY-MM-DD");
+    const sessionDate = s.date || (s as any).session_date;
+    if (!sessionDate) return acc;
+    const d = dayjs(sessionDate).format("YYYY-MM-DD");
     if (!acc[d]) acc[d] = [];
     acc[d].push(s);
     return acc;
@@ -287,10 +387,26 @@ function CalendarView({ sessions, onDayClick }: {
 }
 
 // ─── Session Card ─────────────────────────────────────────
-function SessionCard({ session, onDelete }: { session: Session, onDelete: (id: string) => void }) {
+function SessionCard({ session, onEdit, onRefresh }: { 
+  session: Session; 
+  onEdit: (s: Session) => void;
+  onRefresh: () => void;
+}) {
   const router = useRouter();
   const pct = Math.round((session.booked_count / session.max_patients) * 100);
   const doctorId = session.doctor?.doctor_id;
+
+  async function handleDelete(id: string) {
+    if (!window.confirm("Are you sure you want to delete this session?")) return;
+    try {
+      await api.delete(`sessions/${id}`);
+      toast.success("Session deleted");
+      onRefresh();
+    } catch (err: any) {
+      toast.error(getErrorMessage(err));
+    }
+  }
+
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-5 group hover:shadow-md transition-all">
       <div className="flex items-start justify-between mb-3">
@@ -308,20 +424,20 @@ function SessionCard({ session, onDelete }: { session: Session, onDelete: (id: s
           </span>
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <button onClick={() => router.push(`/sessions/${session.session_id}/queue`)}
-              className="p-1.5 rounded-lg text-orange-600 hover:bg-orange-50 transition" title="View Queue Board">
-              <LayoutPanelTop className="w-3.5 h-3.5" />
+              className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition" title="View Queue">
+              <Eye className="w-4 h-4" />
             </button>
-            <button onClick={() => doctorId ? router.push(`/doctors/${doctorId}`) : toast.success("Doctor profile (Coming Soon)")}
-              className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition" title="View Doctor Profile">
-              <Eye className="w-3.5 h-3.5" />
-            </button>
-            <button onClick={() => toast.success("Edit Session (Coming Soon)")}
+            <button onClick={() => onEdit(session)}
               className="p-1.5 rounded-lg text-gray-400 hover:text-green-600 hover:bg-green-50 transition" title="Edit">
-              <Pencil className="w-3.5 h-3.5" />
+              <Pencil className="w-4 h-4" />
             </button>
-            <button onClick={() => onDelete(session.session_id)}
+            <button onClick={() => doctorId ? router.push(`/doctors/${doctorId}`) : toast.success("Doctor profile")}
+              className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition" title="Doctor Profile">
+              <Users className="w-4 h-4" />
+            </button>
+            <button onClick={() => handleDelete(session.session_id)}
               className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition" title="Delete">
-              <Trash2 className="w-3.5 h-3.5" />
+              <Trash2 className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -360,35 +476,28 @@ export default function SessionsPage() {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"calendar" | "list">("calendar");
   const [modalOpen, setModalOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<Session | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const fetchSessions = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get("sessions", { params: { limit: 100 } });
-      setSessions(res.data.data);
+      const mapped = (res.data.data || []).map((s: any) => ({
+        ...s,
+        date: s.session_date || s.date,
+        doctor: s.doctor || { 
+          name: s.doctor_name || "Unknown Doctor", 
+          specialization: s.specialization || "General" 
+        }
+      }));
+      setSessions(mapped);
     } catch (err) {
       toast.error(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
   }, []);
-
-  async function handleDelete(id: string) {
-    if (!window.confirm("Are you sure you want to delete this session?")) return;
-    try {
-      await api.delete(`sessions/${id}`);
-      toast.success("Session deleted");
-      fetchSessions();
-    } catch (err: any) {
-      if (err?.response?.status === 404) {
-        setSessions(prev => prev.filter(s => s.session_id !== id));
-        toast.success("Session deleted");
-      } else {
-        toast.error(getErrorMessage(err));
-      }
-    }
-  }
 
   useEffect(() => { if (user) fetchSessions(); }, [user, fetchSessions]);
   if (authLoading) return null;
@@ -442,7 +551,7 @@ export default function SessionsPage() {
                 <p className="text-sm text-gray-400">No sessions on this day.</p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {displayedSessions.map((s) => <SessionCard key={s.session_id} session={s} onDelete={handleDelete} />)}
+                  {displayedSessions.map((s) => <SessionCard key={s.session_id} session={s} onEdit={setEditTarget} onRefresh={fetchSessions} />)}
                 </div>
               )}
             </div>
@@ -455,14 +564,19 @@ export default function SessionsPage() {
             <p className="text-sm font-medium">No sessions found</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {sessions.map((s) => <SessionCard key={s.session_id} session={s} onDelete={handleDelete} />)}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {sessions.map((s) => (
+              <SessionCard key={s.session_id} session={s} onEdit={setEditTarget} onRefresh={fetchSessions} />
+            ))}
           </div>
         )
       )}
 
       {modalOpen && (
         <CreateSessionModal user={user} onClose={() => setModalOpen(false)} onSaved={fetchSessions} />
+      )}
+      {editTarget && (
+        <EditSessionModal session={editTarget} onClose={() => setEditTarget(null)} onSaved={fetchSessions} />
       )}
     </div>
   );

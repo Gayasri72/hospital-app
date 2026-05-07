@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import {
   ArrowLeft, Loader2, Phone, Mail, MapPin, CreditCard,
@@ -57,13 +57,15 @@ const STATUS_STYLES: Record<string, string> = {
 export default function PatientDetailPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const patientId = params.id as string;
+  const isEditingInitial = searchParams?.get("edit") === "true";
   const { isLoading: authLoading } = useRequireAuth();
 
   const [patient, setPatient] = useState<Patient | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(isEditingInitial);
   const [editForm, setEditForm] = useState<Partial<Patient>>({});
   const [saving, setSaving] = useState(false);
 
