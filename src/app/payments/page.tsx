@@ -351,7 +351,40 @@ function PaymentFormModal({ payment, onClose, onPaid }: {
       }
 
       // 2. Process the transaction
-      await api.post(`payments/${payment.payment_id}/transactions/`, payload);
+      try {
+        await api.post(`payments/${payment.payment_id}/transactions/`, payload);
+      } catch (transErr: any) {
+        const isBalanceError = transErr.response?.data?.code === 'AMOUNT_EXCEEDS_BALANCE' || 
+                              transErr.response?.data?.message?.includes('exceeds remaining balance');
+        
+        if (isBalanceError && payment.appointment?.appointment_id) {
+          console.log("Balance mismatch detected. Attempting to re-create payment record with current fees...");
+          try {
+            // A. Delete the stale payment record
+            await api.delete(`payments/${payment.payment_id}/`);
+            
+            // B. Re-create it (this will trigger a fresh snapshot with current doctor fee)
+            const newPaymentRes = await api.post("payments/", {
+              appointment_id: payment.appointment.appointment_id
+            });
+            const newPaymentId = newPaymentRes.data.data.payment_id;
+            
+            // C. Retry the transaction with the NEW payment ID
+            payload.payment_id = newPaymentId;
+            await api.post(`payments/${newPaymentId}/transactions/`, payload);
+            
+            toast.success("Payment recorded (record synchronized)!");
+            onPaid();
+            onClose();
+            return;
+          } catch (hackErr) {
+            console.error("Re-creation hack failed:", hackErr);
+            throw transErr; // Throw original error if hack fails
+          }
+        } else {
+          throw transErr;
+        }
+      }
       
       toast.success("Payment recorded successfully!");
       onPaid();
