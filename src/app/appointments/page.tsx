@@ -466,7 +466,7 @@ export default function AppointmentsPage() {
 
   async function handleStatusChange(id: string, newStatus: string, apt: Appointment) {
     try {
-      await api.patch(`appointments/${id}/status/`, { status: newStatus.toLowerCase() });
+      await api.patch(`appointments/${id}/status`, { status: newStatus.toLowerCase() });
       toast.success(`Status updated to ${newStatus}`);
       
       // Auto-create payment if completed
@@ -474,7 +474,7 @@ export default function AppointmentsPage() {
         try {
           const feeCache = JSON.parse(localStorage.getItem("doctor_fees_cache") || "{}");
           const doctorFee = Number(feeCache[apt.doctor.doctor_id]) || 0;
-          await api.post("payments/", {
+          await api.post("payments", {
             appointment_id: id,
             doctor_fee: doctorFee,
             total_amount: doctorFee + 2500
