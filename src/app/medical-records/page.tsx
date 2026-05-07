@@ -309,7 +309,7 @@ export default function MedicalRecordsPage() {
       const params: Record<string, unknown> = { limit: 50 };
       if (dateFilter) params.date = dateFilter;
       // If doctor, only fetch their appointments
-      const res = await api.get("appointments", { params });
+      const res = await api.get("appointments/", { params });
       setAppointments(res.data.data);
     } catch (err) {
       toast.error(getErrorMessage(err));
