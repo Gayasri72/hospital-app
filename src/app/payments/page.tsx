@@ -333,7 +333,18 @@ function PaymentFormModal({ payment, onClose, onPaid }: {
         payload.branch_id = user.branch_id;
       }
       
-      console.log("Sending payment payload:", payload);
+      // 1. Update the payment record's amounts on the backend first to avoid "balance exceeds" error
+      try {
+        await api.patch(`payments/${payment.payment_id}/`, {
+          doctor_fee: Number(doctorFee),
+          hospital_charge: Number(hospitalCharge),
+          total_amount: totalAmount
+        });
+      } catch (patchErr) {
+        console.warn("Could not update payment record amounts, continuing to transaction...", patchErr);
+      }
+
+      // 2. Process the transaction
       await api.post(`payments/${payment.payment_id}/transactions/`, payload);
       
       toast.success("Payment recorded successfully!");
@@ -448,7 +459,7 @@ export default function PaymentsPage() {
       // Normalize statuses and merge cached fees
       const feeCache = JSON.parse(localStorage.getItem("doctor_fees_cache") || "{}");
       const normalized = res.data.data.map((p: any) => {
-        const doctorId = p.appointment?.doctor?.doctor_id;
+        const doctorId = p.appointment?.doctor?.doctor_id || p.appointment?.doctor?.id || p.appointment?.doctor_id;
         const cachedFee = doctorId ? Number(feeCache[doctorId]) : 0;
         const status = p.status?.charAt(0).toUpperCase() + p.status?.slice(1).toLowerCase();
         

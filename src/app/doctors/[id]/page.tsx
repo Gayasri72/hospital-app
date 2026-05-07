@@ -213,13 +213,22 @@ export default function DoctorDetailPage() {
       cacheFee(doctorId, payload.consultation_fee);
       
       // Re-fetch to confirm update
-      const updatedRes = await api.get(`doctors/${doctorId}`);
+      const updatedRes = await api.get(`doctors/${doctorId}/`);
       const updatedDoc = updatedRes.data.data;
+      const cachedFee = getCachedFee(doctorId);
       const merged = { 
         ...updatedDoc, 
-        phone: updatedDoc.contact_number || updatedDoc.phone,
+        phone: updatedDoc.contact_number || updatedDoc.phone || updatedDoc.profile?.contact_number || updatedDoc.profile?.phone || "",
+        email: updatedDoc.email || updatedDoc.profile?.email || updatedDoc.contact_email || "",
         status: updatedDoc.status?.toLowerCase() === "active" ? "Active" : "Inactive",
-        consultation_fee: payload.consultation_fee // Prioritize what we just saved
+        consultation_fee: cachedFee || updatedDoc.consultation_fee || updatedDoc.profile?.consultation_fee || 0,
+        profile: updatedDoc.profile || {
+          qualifications: updatedDoc.qualifications,
+          experience: updatedDoc.experience,
+          bio: updatedDoc.bio,
+          contact_number: updatedDoc.contact_number || updatedDoc.phone,
+          email: updatedDoc.email
+        }
       };
       
       setDoctor(merged);
