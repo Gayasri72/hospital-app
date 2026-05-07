@@ -40,7 +40,6 @@ const NAV: NavItem[] = [
   { label: "Doctors",      href: "/doctors",         icon: <Stethoscope className="w-4 h-4" />, roles: ["Super Admin","Hospital Admin","Receptionist"] },
   { label: "Sessions",     href: "/sessions",        icon: <ClipboardList className="w-4 h-4" /> },
   { label: "Appointments", href: "/appointments",    icon: <Calendar className="w-4 h-4" /> },
-  { label: "Medical",      href: "/medical-records", icon: <FileText className="w-4 h-4" />, roles: ["Super Admin","Hospital Admin","Doctor"] },
   { label: "Payments",     href: "/payments",        icon: <CreditCard className="w-4 h-4" /> },
   { label: "Reports",      href: "/reports",         icon: <PieChart className="w-4 h-4" />, roles: ["Super Admin","Hospital Admin","Accountant"] },
   {
