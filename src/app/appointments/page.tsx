@@ -477,7 +477,7 @@ export default function AppointmentsPage() {
           await api.post("payments/", {
             appointment_id: id,
             doctor_fee: doctorFee,
-            total_amount: doctorFee + 500
+            total_amount: doctorFee + 2500
           });
           toast.success("Payment invoice automatically generated!");
         } catch (paymentErr) {

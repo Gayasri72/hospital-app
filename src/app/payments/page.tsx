@@ -294,7 +294,7 @@ function PaymentFormModal({ payment, onClose, onPaid }: {
                      payment.appointment?.doctor?.consultation_fee || 0;
 
   const [doctorFee, setDoctorFee] = useState(initialFee);
-  const [hospitalCharge, setHospitalCharge] = useState(payment.hospital_charge || 0);
+  const [hospitalCharge, setHospitalCharge] = useState(payment.hospital_charge || 2500);
   const [loading, setLoading] = useState(false);
   const totalAmount = Number(doctorFee) + Number(hospitalCharge);
 
@@ -341,9 +341,9 @@ function PaymentFormModal({ payment, onClose, onPaid }: {
           hospital_charge: Number(hospitalCharge),
           total_amount: totalAmount
         };
-        await api.put(`payments/${payment.payment_id}/`, updateData).catch(async () => {
-          await api.patch(`payments/${payment.payment_id}/`, updateData).catch(async () => {
-            await api.post(`payments/${payment.payment_id}/update/`, updateData).catch(() => {});
+        await api.put(`payments/${payment.payment_id}`, updateData).catch(async () => {
+          await api.patch(`payments/${payment.payment_id}`, updateData).catch(async () => {
+            await api.post(`payments/${payment.payment_id}/update`, updateData).catch(() => {});
           });
         });
       } catch (err) {
@@ -361,17 +361,17 @@ function PaymentFormModal({ payment, onClose, onPaid }: {
           console.log("Balance mismatch detected. Attempting to re-create payment record with current fees...");
           try {
             // A. Delete the stale payment record
-            await api.delete(`payments/${payment.payment_id}/`);
+            await api.delete(`payments/${payment.payment_id}`);
             
-            // B. Re-create it (this will trigger a fresh snapshot with current doctor fee)
-            const newPaymentRes = await api.post("payments/", {
+            // B. Re-create it
+            const newPaymentRes = await api.post("payments", {
               appointment_id: payment.appointment.appointment_id
             });
             const newPaymentId = newPaymentRes.data.data.payment_id;
             
             // C. Retry the transaction with the NEW payment ID
             payload.payment_id = newPaymentId;
-            await api.post(`payments/${newPaymentId}/transactions/`, payload);
+            await api.post(`payments/${newPaymentId}/transactions`, payload);
             
             toast.success("Payment recorded (record synchronized)!");
             onPaid();
