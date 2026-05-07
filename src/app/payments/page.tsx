@@ -449,11 +449,22 @@ export default function PaymentsPage() {
       const normalized = res.data.data.map((p: any) => {
         const doctorId = p.appointment?.doctor?.doctor_id;
         const cachedFee = doctorId ? Number(feeCache[doctorId]) : 0;
+        const status = p.status?.charAt(0).toUpperCase() + p.status?.slice(1).toLowerCase();
+        
+        // For Pending payments, prioritize the LATEST fee (from cache or doctor profile)
+        // For Paid/Refunded, use the recorded fee
+        const currentFee = (status === "Pending") 
+          ? (cachedFee || p.appointment?.doctor?.consultation_fee || p.doctor_fee || 0)
+          : (p.doctor_fee || p.appointment?.doctor?.consultation_fee || 0);
+        
+        const hospitalCharge = p.hospital_charge || 500; // Default if missing
         
         return {
           ...p,
-          status: p.status?.charAt(0).toUpperCase() + p.status?.slice(1).toLowerCase(),
-          doctor_fee: p.doctor_fee || p.appointment?.doctor?.consultation_fee || cachedFee || 0
+          status,
+          doctor_fee: currentFee,
+          hospital_charge: hospitalCharge,
+          total_amount: (status === "Pending") ? (currentFee + hospitalCharge) : p.total_amount
         };
       });
 
