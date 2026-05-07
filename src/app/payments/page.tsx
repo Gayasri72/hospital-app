@@ -290,8 +290,8 @@ function PaymentFormModal({ payment, onClose, onPaid }: {
   
   // Fallback chain for initial state
   const initialFee = payment.doctor_fee || 
-                     payment.appointment?.doctor?.consultation_fee || 
-                     (payment.appointment?.doctor?.doctor_id ? getCachedFee(payment.appointment.doctor.doctor_id) : 0);
+                     (payment.appointment?.doctor?.doctor_id ? getCachedFee(payment.appointment.doctor.doctor_id) : 0) ||
+                     payment.appointment?.doctor?.consultation_fee || 0;
 
   const [doctorFee, setDoctorFee] = useState(initialFee);
   const [hospitalCharge, setHospitalCharge] = useState(payment.hospital_charge || 0);
@@ -300,14 +300,15 @@ function PaymentFormModal({ payment, onClose, onPaid }: {
 
   // Auto-fetch fee if missing
   useEffect(() => {
-    if (doctorFee === 0 && payment.appointment?.doctor?.doctor_id) {
-      api.get(`doctors/${payment.appointment.doctor.doctor_id}`).then(res => {
+    const docId = payment.appointment?.doctor?.doctor_id;
+    if (doctorFee === 0 && docId) {
+      api.get(`doctors/${docId}/`).then(res => {
         const fee = res.data.data?.consultation_fee;
         if (fee) {
           setDoctorFee(fee);
           // Sync with cache
           const cache = JSON.parse(localStorage.getItem("doctor_fees_cache") || "{}");
-          cache[payment.appointment.doctor.doctor_id] = fee;
+          cache[docId] = fee;
           localStorage.setItem("doctor_fees_cache", JSON.stringify(cache));
         }
       }).catch(() => {});
