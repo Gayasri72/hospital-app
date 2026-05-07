@@ -99,9 +99,18 @@ function CreateAppointmentModal({ onClose, onSaved }: { onClose: () => void; onS
   // Load sessions for selected doctor
   useEffect(() => {
     if (step === 3 && selectedDoctor) {
-      api.get("sessions", {
-        params: { doctor_id: selectedDoctor.doctor_id, limit: 100 }
-      }).then((r) => setSessions(r.data.data)).catch(() => {});
+      // Fetch all sessions and filter in frontend for maximum reliability
+      api.get("sessions/", {
+        params: { limit: 1000 }
+      }).then((r) => {
+        const allSessions = r.data.data || [];
+        // Filter by doctor_id (handling both string and object doctor references)
+        const filtered = allSessions.filter((s: any) => {
+          const docId = s.doctor_id || s.doctor?.doctor_id || s.doctor?.id;
+          return String(docId) === String(selectedDoctor.doctor_id);
+        });
+        setSessions(filtered);
+      }).catch(() => {});
     }
   }, [step, selectedDoctor]);
 
