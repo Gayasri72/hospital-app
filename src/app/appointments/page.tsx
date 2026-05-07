@@ -110,7 +110,7 @@ function CreateAppointmentModal({ onClose, onSaved }: { onClose: () => void; onS
         // Filter by doctor (extremely robust matching)
         const filtered = allSessions.filter((s: any) => {
           const docId = s.doctor_id || s.doctor?.doctor_id || s.doctor?.id || s.id;
-          const selectedId = selectedDoctor.doctor_id || selectedDoctor.id;
+          const selectedId = (selectedDoctor as any).doctor_id || (selectedDoctor as any).id;
           
           if (docId && selectedId && String(docId) === String(selectedId)) return true;
           
@@ -139,12 +139,12 @@ function CreateAppointmentModal({ onClose, onSaved }: { onClose: () => void; onS
     if (!selectedPatient || !selectedDoctor || !selectedSession) return;
     setLoading(true);
     try {
-      await api.post("appointments/", {
-        patient_id: selectedPatient.patient_id,
-        doctor_id:  selectedDoctor.doctor_id,
-        session_id: selectedSession.session_id,
+      await api.post("appointments", {
+        patient_id: (selectedPatient as any).patient_id,
+        doctor_id:  (selectedDoctor as any).doctor_id,
+        session_id: (selectedSession as any).session_id,
       });
-      toast.success(`Appointment booked! Queue #${selectedSession.booked_count + 1}`);
+      toast.success(`Appointment booked! Queue #${(selectedSession as any).booked_count + 1}`);
       onSaved(); onClose();
     } catch (err) {
       toast.error(getErrorMessage(err));
