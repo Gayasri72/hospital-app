@@ -1,5 +1,5 @@
 "use client";
-// Version 1.0.1 - Final Production Build
+// Version 1.0.2 - Final Production Redeploy
 import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
