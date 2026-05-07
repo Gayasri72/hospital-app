@@ -334,14 +334,20 @@ function PaymentFormModal({ payment, onClose, onPaid }: {
       }
       
       // 1. Update the payment record's amounts on the backend first to avoid "balance exceeds" error
+      // Try PUT first, then PATCH, then /update/
       try {
-        await api.patch(`payments/${payment.payment_id}/`, {
+        const updateData = {
           doctor_fee: Number(doctorFee),
           hospital_charge: Number(hospitalCharge),
           total_amount: totalAmount
+        };
+        await api.put(`payments/${payment.payment_id}/`, updateData).catch(async () => {
+          await api.patch(`payments/${payment.payment_id}/`, updateData).catch(async () => {
+            await api.post(`payments/${payment.payment_id}/update/`, updateData).catch(() => {});
+          });
         });
-      } catch (patchErr) {
-        console.warn("Could not update payment record amounts, continuing to transaction...", patchErr);
+      } catch (err) {
+        console.warn("Could not update payment amounts via any method:", err);
       }
 
       // 2. Process the transaction
@@ -459,8 +465,19 @@ export default function PaymentsPage() {
       // Normalize statuses and merge cached fees
       const feeCache = JSON.parse(localStorage.getItem("doctor_fees_cache") || "{}");
       const normalized = res.data.data.map((p: any) => {
-        const doctorId = p.appointment?.doctor?.doctor_id || p.appointment?.doctor?.id || p.appointment?.doctor_id;
-        const cachedFee = doctorId ? Number(feeCache[doctorId]) : 0;
+        const doctorId = p.appointment?.doctor?.doctor_id || 
+                         p.appointment?.doctor?.id || 
+                         p.appointment?.doctor_id || 
+                         p.doctor_id ||
+                         p.appointment?.doctor_name; // Last resort search by name in cache
+        
+        let cachedFee = 0;
+        if (doctorId && feeCache[doctorId]) {
+          cachedFee = Number(feeCache[doctorId]);
+        } else if (p.appointment?.doctor?.name && feeCache[p.appointment.doctor.name]) {
+          cachedFee = Number(feeCache[p.appointment.doctor.name]);
+        }
+        
         const status = p.status?.charAt(0).toUpperCase() + p.status?.slice(1).toLowerCase();
         
         // For Pending payments, prioritize the LATEST fee (from cache or doctor profile)

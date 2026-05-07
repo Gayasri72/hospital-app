@@ -128,7 +128,7 @@ export default function DoctorDetailPage() {
         const merged = { 
           ...d, 
           phone: d.contact_number || d.phone || d.profile?.contact_number || d.profile?.phone || "",
-          email: d.email || d.profile?.email || "",
+          email: d.email || d.profile?.email || d.contact_email || d.email_address || d.profile?.email_address || "",
           status: d.status?.toLowerCase() === "active" ? "Active" : "Inactive",
           consultation_fee: cachedFee || d.consultation_fee || d.profile?.consultation_fee || 0,
           // Handle both flat and nested profile fields
@@ -137,7 +137,7 @@ export default function DoctorDetailPage() {
             experience: d.experience,
             bio: d.bio,
             contact_number: d.contact_number || d.phone,
-            email: d.email
+            email: d.email || d.email_address
           }
         };
         setDoctor(merged);
