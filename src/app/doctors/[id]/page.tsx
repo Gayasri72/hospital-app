@@ -127,15 +127,16 @@ export default function DoctorDetailPage() {
         const cachedFee = getCachedFee(doctorId);
         const merged = { 
           ...d, 
-          phone: d.contact_number || d.phone, 
+          phone: d.contact_number || d.phone || d.profile?.contact_number || d.profile?.phone || "",
+          email: d.email || d.profile?.email || "",
           status: d.status?.toLowerCase() === "active" ? "Active" : "Inactive",
-          consultation_fee: cachedFee || d.consultation_fee || 0,
+          consultation_fee: cachedFee || d.consultation_fee || d.profile?.consultation_fee || 0,
           // Handle both flat and nested profile fields
           profile: d.profile || {
             qualifications: d.qualifications,
             experience: d.experience,
             bio: d.bio,
-            contact_number: d.contact_number,
+            contact_number: d.contact_number || d.phone,
             email: d.email
           }
         };
@@ -200,6 +201,7 @@ export default function DoctorDetailPage() {
         status: editForm.status?.toLowerCase(),
         consultation_fee: Number(editForm.consultation_fee),
         contact_number: editForm.phone, 
+        phone: editForm.phone, // Send both
         email: editForm.email,
         qualifications: editForm.profile?.qualifications,
         experience: editForm.profile?.experience,

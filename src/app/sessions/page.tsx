@@ -158,7 +158,11 @@ function CreateSessionModal({ user, onClose, onSaved }: { user: any; onClose: ()
               className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:border-blue-400 transition-all font-medium"
               disabled={doctorsLoading}>
               <option value="">{doctorsLoading ? "Loading doctors…" : doctors.length === 0 ? "No doctors available" : "Select doctor"}</option>
-              {doctors.map((d) => <option key={d.doctor_id} value={d.doctor_id}>{d.name} — {d.specialization}</option>)}
+              {doctors.map((d) => (
+                <option key={d.doctor_id} value={d.doctor_id}>
+                  {d.name} — {d.specialization} {d.consultation_fee ? `(Rs ${d.consultation_fee.toLocaleString()})` : ""}
+                </option>
+              ))}
             </select>
           </div>
           <div>
@@ -416,7 +420,12 @@ function SessionCard({ session, onEdit, onRefresh }: {
             className={cn("font-semibold text-gray-900 text-left", doctorId && "hover:text-blue-600 hover:underline transition-colors cursor-pointer")}>
             {session.doctor.name}
           </button>
-          <p className="text-sm text-blue-600">{session.doctor.specialization}</p>
+          <div className="text-sm text-blue-600 flex items-center gap-1">
+            {session.doctor.specialization}
+            {(session as any).consultation_fee ? (
+              <span className="text-gray-400 font-medium">· Rs {(session as any).consultation_fee.toLocaleString()}</span>
+            ) : null}
+          </div>
         </div>
         <div className="flex flex-col items-end gap-2">
           <span className={cn("text-xs px-2.5 py-1 rounded-full font-medium capitalize", getStatusStyle(session.status))}>
@@ -483,13 +492,16 @@ export default function SessionsPage() {
     setLoading(true);
     try {
       const res = await api.get("sessions", { params: { limit: 100 } });
+      const feeCache = JSON.parse(localStorage.getItem("doctor_fees_cache") || "{}");
       const mapped = (res.data.data || []).map((s: any) => ({
         ...s,
         date: s.session_date || s.date,
         doctor: s.doctor || { 
           name: s.doctor_name || "Unknown Doctor", 
-          specialization: s.specialization || "General" 
-        }
+          specialization: s.specialization || "General",
+          doctor_id: s.doctor_id
+        },
+        consultation_fee: feeCache[s.doctor_id || s.doctor?.doctor_id] ?? s.consultation_fee ?? s.doctor?.consultation_fee ?? 0
       }));
       setSessions(mapped);
     } catch (err) {

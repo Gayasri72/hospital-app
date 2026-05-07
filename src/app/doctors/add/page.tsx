@@ -58,7 +58,10 @@ export default function AddDoctorPage() {
         consultation_fee: Number(form.consultation_fee),
         effective_from: form.effective_from,
       };
-      if (form.contact_number) payload.contact_number = form.contact_number;
+      if (form.contact_number) {
+        payload.contact_number = form.contact_number;
+        payload.phone = form.contact_number; // Send both to be safe
+      }
       if (form.email) payload.email = form.email;
       if (form.qualifications) payload.qualifications = form.qualifications;
       if (form.experience) payload.experience = form.experience;

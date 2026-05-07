@@ -386,11 +386,18 @@ export default function AppointmentsPage() {
       
       const res = await api.get("appointments/", { params });
       
-      // Ensure we match statuses correctly regardless of case from backend
+      const feeCache = JSON.parse(localStorage.getItem("doctor_fees_cache") || "{}");
       const normalized = res.data.data.map((a: any) => {
         // Find matching status from our list to ensure correct styling
         const statusMatch = ALL_STATUSES.find(s => s.toLowerCase() === a.status?.toLowerCase()) || a.status;
-        return { ...a, status: statusMatch };
+        return { 
+          ...a, 
+          status: statusMatch,
+          doctor: {
+            ...a.doctor,
+            consultation_fee: feeCache[a.doctor?.doctor_id] ?? a.doctor?.consultation_fee ?? 0
+          }
+        };
       });
 
       setAppointments(normalized);
@@ -551,9 +558,13 @@ export default function AppointmentsPage() {
                         className="text-sm font-semibold text-gray-900 hover:text-blue-600 hover:underline text-left transition-colors">
                         {apt.doctor.name}
                       </button>
-                      <div className="text-xs text-blue-600 cursor-pointer hover:underline"
-                        onClick={() => router.push(`/doctors/${apt.doctor.doctor_id}`)}>
-                        {apt.doctor.specialization}
+                      <div className="text-xs text-blue-600 flex items-center gap-1">
+                        <span className="cursor-pointer hover:underline" onClick={() => router.push(`/doctors/${apt.doctor.doctor_id}`)}>
+                          {apt.doctor.specialization}
+                        </span>
+                        {apt.doctor.consultation_fee ? (
+                          <span className="text-gray-400">· Rs {apt.doctor.consultation_fee.toLocaleString()}</span>
+                        ) : null}
                       </div>
                     </td>
                     <td className="px-5 py-3.5">
