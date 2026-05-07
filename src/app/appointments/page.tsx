@@ -102,22 +102,24 @@ function CreateAppointmentModal({ onClose, onSaved }: { onClose: () => void; onS
   useEffect(() => {
     if (step === 3 && selectedDoctor) {
       setSessionsLoading(true);
-      // Fetch all sessions and filter in frontend for maximum reliability
-      api.get("sessions/", {
+      // Fetch all sessions (removed trailing slash for compatibility)
+      api.get("sessions", {
         params: { limit: 1000 }
       }).then((r) => {
         const allSessions = r.data.data || [];
-        // Filter by doctor (handling multiple ID field names and name fallback)
+        // Filter by doctor (extremely robust matching)
         const filtered = allSessions.filter((s: any) => {
-          const docId = s.doctor_id || s.doctor?.doctor_id || s.doctor?.id;
+          const docId = s.doctor_id || s.doctor?.doctor_id || s.doctor?.id || s.id;
           const selectedId = selectedDoctor.doctor_id || selectedDoctor.id;
           
           if (docId && selectedId && String(docId) === String(selectedId)) return true;
           
-          // Fallback to name matching if IDs are missing or inconsistent
-          const docName = s.doctor_name || s.doctor?.name;
-          const selectedName = selectedDoctor.name;
-          if (docName && selectedName && docName.toLowerCase() === selectedName.toLowerCase()) return true;
+          // Fallback: match by doctor name (stripping "Dr. " prefix if needed)
+          const normalize = (n: string) => n?.toLowerCase().replace(/^dr\.\s*/, "").trim();
+          const docName = normalize(s.doctor_name || s.doctor?.name);
+          const selectedName = normalize(selectedDoctor.name);
+          
+          if (docName && selectedName && docName === selectedName) return true;
           
           return false;
         });
