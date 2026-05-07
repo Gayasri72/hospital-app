@@ -294,7 +294,7 @@ function PaymentFormModal({ payment, onClose, onPaid }: {
                      payment.appointment?.doctor?.consultation_fee || 0;
 
   const [doctorFee, setDoctorFee] = useState(initialFee);
-  const [hospitalCharge, setHospitalCharge] = useState(payment.hospital_charge || 2500);
+  const [hospitalCharge, setHospitalCharge] = useState(2500);
   const [loading, setLoading] = useState(false);
   const totalAmount = Number(doctorFee) + Number(hospitalCharge);
 
