@@ -29,15 +29,42 @@ export default function ReportsPage() {
   const fetchRevenue = useCallback(async () => {
     try {
       const [total, byDoctor, byMethod] = await Promise.all([
-        api.get("reports/revenue/", { params: { start_date: range.start, end_date: range.end } }),
-        api.get("reports/revenue/by-doctor/", { params: { start_date: range.start, end_date: range.end } }),
-        api.get("reports/revenue/by-payment-method/", { params: { start_date: range.start, end_date: range.end } })
+        api.get("reports/financial/total/", { params: range }),
+        api.get("reports/financial/by-doctor/", { params: range }),
+        api.get("reports/financial/by-method/", { params: range }),
       ]);
-      setRevenueData({
+
+      let data = {
         total: total.data.data,
         byDoctor: byDoctor.data.data,
         byMethod: byMethod.data.data
-      });
+      };
+
+      // Fallback: If specialized report returns 0 but we suspect there's data, fetch raw payments
+      if (!data.total?.total_revenue || data.total?.total_revenue === 0) {
+        const rawPayments = await api.get("payments/", { params: range });
+        const list = rawPayments.data.data || [];
+        if (list.length > 0) {
+          const calculatedTotal = list.reduce((sum: number, p: any) => sum + (Number(p.total_amount) || 0), 0);
+          data.total = {
+            total_revenue: calculatedTotal,
+            appointment_count: list.length
+          };
+          
+          // Basic grouping for methods if report failed
+          const methods: Record<string, number> = {};
+          list.forEach((p: any) => {
+            const m = p.transactions?.[0]?.method || "Other";
+            methods[m] = (methods[m] || 0) + (Number(p.total_amount) || 0);
+          });
+          data.byMethod = Object.entries(methods).map(([method, revenue]) => ({
+            payment_method: method,
+            total_revenue: revenue
+          }));
+        }
+      }
+
+      setRevenueData(data);
     } catch (err) {
       console.error("Revenue fetch failed:", err);
       setRevenueData({ total: {}, byDoctor: [], byMethod: [] });
@@ -213,26 +240,72 @@ export default function ReportsPage() {
                     <Activity className="w-5 h-5 text-blue-600" /> Top Revenue Contributors
                   </h3>
                   <div className="space-y-5">
-                    {revenueData.byDoctor.slice(0, 5).map((d: any) => (
-                      <div key={d.doctor_id} className="group flex items-center justify-between p-3 rounded-2xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center font-black text-gray-400 group-hover:bg-blue-600 group-hover:text-white transition-all">
-                            {d.doctor_name.charAt(0)}
+                    {revenueData.byDoctor?.length > 0 ? (
+                      revenueData.byDoctor.slice(0, 5).map((d: any) => (
+                        <div key={d.doctor_id} className="group flex items-center justify-between p-3 rounded-2xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center font-black text-gray-400 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                              {d.doctor_name.charAt(0)}
+                            </div>
+                            <div>
+                              <div className="text-sm font-black text-gray-900 dark:text-white">{d.doctor_name}</div>
+                              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{d.appointment_count} patients serviced</div>
+                            </div>
                           </div>
-                          <div>
-                            <div className="text-sm font-black text-gray-900 dark:text-white">{d.doctor_name}</div>
-                            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{d.appointment_count} patients serviced</div>
+                          <div className="text-right">
+                            <div className="text-sm font-black text-blue-600 dark:text-blue-400">Rs {d.total_revenue.toLocaleString()}</div>
+                            <div className="w-20 h-1 bg-gray-100 dark:bg-gray-800 rounded-full mt-1 overflow-hidden">
+                              <div className="h-full bg-blue-600 w-[60%]" />
+                            </div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-sm font-black text-blue-600 dark:text-blue-400">Rs {d.total_revenue.toLocaleString()}</div>
-                          <div className="w-20 h-1 bg-gray-100 dark:bg-gray-800 rounded-full mt-1 overflow-hidden">
-                            <div className="h-full bg-blue-600 w-[60%]" />
-                          </div>
-                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-10">
+                        <p className="text-gray-400 text-xs">No contributors found</p>
                       </div>
-                    ))}
+                    )}
                   </div>
+                </div>
+              </div>
+
+              {/* Numeric Summary Table */}
+              <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 overflow-hidden shadow-sm">
+                <div className="px-8 py-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-gray-50/30 dark:bg-gray-800/30">
+                  <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <ScrollText className="w-5 h-5 text-blue-600" /> Numeric Summary Breakdown
+                  </h3>
+                  <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Financial Data Table</div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="bg-gray-50/50 dark:bg-gray-800/50">
+                        <th className="px-8 py-4 text-left text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Category</th>
+                        <th className="px-8 py-4 text-left text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Metric</th>
+                        <th className="px-8 py-4 text-right text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Value</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+                      <tr>
+                        <td className="px-8 py-4 text-sm font-bold text-gray-900 dark:text-white">Overall Revenue</td>
+                        <td className="px-8 py-4 text-sm text-gray-500">Gross Collection</td>
+                        <td className="px-8 py-4 text-right text-sm font-black text-green-600">Rs {revenueData.total?.total_revenue?.toLocaleString() || 0}</td>
+                      </tr>
+                      <tr>
+                        <td className="px-8 py-4 text-sm font-bold text-gray-900 dark:text-white">Transaction Volume</td>
+                        <td className="px-8 py-4 text-sm text-gray-500">Total Appointments</td>
+                        <td className="px-8 py-4 text-right text-sm font-black text-blue-600">{revenueData.total?.appointment_count || 0}</td>
+                      </tr>
+                      {revenueData.byMethod?.map((m: any) => (
+                        <tr key={m.payment_method}>
+                          <td className="px-8 py-4 text-sm font-bold text-gray-900 dark:text-white">By Method</td>
+                          <td className="px-8 py-4 text-sm text-gray-500">{m.payment_method}</td>
+                          <td className="px-8 py-4 text-right text-sm font-black text-gray-700 dark:text-gray-300">Rs {m.total_revenue?.toLocaleString() || 0}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </>
