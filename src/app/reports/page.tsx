@@ -22,9 +22,9 @@ export default function ReportsPage() {
     end: dayjs().endOf("month").format("YYYY-MM-DD")
   });
 
-  const [revenueData, setRevenueData] = useState<any>(null);
-  const [visitData, setVisitData] = useState<any>(null);
-  const [performanceData, setPerformanceData] = useState<any>(null);
+  const [revenueData, setRevenueData] = useState<any>({ total: {}, byDoctor: [], byMethod: [] });
+  const [visitData, setVisitData] = useState<any>({ visits: [], specializations: [] });
+  const [performanceData, setPerformanceData] = useState<any>([]);
 
   const fetchRevenue = useCallback(async () => {
     try {
@@ -39,7 +39,8 @@ export default function ReportsPage() {
         byMethod: byMethod.data.data
       });
     } catch (err) {
-      console.error(err);
+      console.error("Revenue fetch failed:", err);
+      setRevenueData({ total: {}, byDoctor: [], byMethod: [] });
     }
   }, [range]);
 
@@ -53,7 +54,9 @@ export default function ReportsPage() {
       setVisitData({ visits: visits.data.data, specializations: specializations.data.data });
       setPerformanceData(doctorPerf.data.data);
     } catch (err) {
-      console.error(err);
+      console.error("Analytics fetch failed:", err);
+      setVisitData({ visits: [], specializations: [] });
+      setPerformanceData([]);
     }
   }, []);
 
