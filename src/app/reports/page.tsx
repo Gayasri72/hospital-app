@@ -4,7 +4,7 @@ import toast from "react-hot-toast";
 import { 
   BarChart3, PieChart, Users, TrendingUp, Calendar, 
   Search, Download, Loader2, Building2, UserCircle, 
-  CreditCard, LayoutPanelTop, Activity, Target, ScrollText
+  CreditCard, LayoutPanelTop, Activity, Target, ScrollText, CheckCircle2
 } from "lucide-react";
 import { useRequireAuth } from "@/hooks/useAuth";
 import api from "@/lib/api";
