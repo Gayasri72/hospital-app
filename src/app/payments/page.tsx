@@ -333,24 +333,24 @@ function PaymentFormModal({ payment, onClose, onPaid }: {
         payload.branch_id = user.branch_id;
       }
       
-      // 1. Update the payment record's amounts on the backend first to avoid "balance exceeds" error
-      // Try PUT first, then PATCH, then /update/
+      // 1. Optional: Try to update the payment record's amounts (if the endpoint exists)
+      // This is a "best effort" to sync the record before the transaction.
+      // We ignore failures here because the transaction step below handles recovery.
       try {
         const updateData = {
           doctor_fee: Number(doctorFee),
           hospital_charge: Number(hospitalCharge),
           total_amount: totalAmount
         };
+        // Try multiple endpoint patterns
         await api.put(`payments/${payment.payment_id}`, updateData).catch(async () => {
           await api.patch(`payments/${payment.payment_id}`, updateData).catch(async () => {
             await api.post(`payments/${payment.payment_id}/update`, updateData).catch(() => {});
           });
         });
-      } catch (err) {
-        console.warn("Could not update payment amounts via any method:", err);
-      }
+      } catch (err) {}
 
-      // 2. Process the transaction
+      // 1. Process the transaction directly
       try {
         await api.post(`payments/${payment.payment_id}/transactions`, payload);
       } catch (transErr: any) {
@@ -360,16 +360,17 @@ function PaymentFormModal({ payment, onClose, onPaid }: {
         if (isBalanceError && payment.appointment?.appointment_id) {
           console.log("Balance mismatch detected. Attempting to re-create payment record with current fees...");
           try {
-            // A. Delete the stale payment record
-            await api.delete(`payments/${payment.payment_id}`);
-            
-            // B. Re-create it
+            // A. Re-create the payment record with the CORRECT amounts from the start
+            // This ensures the backend initializes the balance correctly.
             const newPaymentRes = await api.post("payments", {
-              appointment_id: payment.appointment.appointment_id
+              appointment_id: payment.appointment.appointment_id,
+              doctor_fee: Number(doctorFee),
+              hospital_charge: Number(hospitalCharge),
+              total_amount: totalAmount
             });
             const newPaymentId = newPaymentRes.data.data.payment_id;
             
-            // C. Retry the transaction with the NEW payment ID
+            // B. Retry the transaction with the NEW payment ID
             payload.payment_id = newPaymentId;
             await api.post(`payments/${newPaymentId}/transactions`, payload);
             
