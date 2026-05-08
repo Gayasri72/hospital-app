@@ -520,14 +520,14 @@ export default function PaymentsPage() {
           ? (cachedFee || p.appointment?.doctor?.consultation_fee || p.doctor_fee || 0)
           : (p.doctor_fee || p.appointment?.doctor?.consultation_fee || 0);
         
-        const hospitalCharge = p.hospital_charge || 500; // Default if missing
+        const hospitalCharge = Number(p.hospital_charge) || 2500; // Updated default to 2500
         
         return {
           ...p,
           status,
           doctor_fee: currentFee,
           hospital_charge: hospitalCharge,
-          total_amount: (status === "Pending") ? (currentFee + hospitalCharge) : p.total_amount
+          total_amount: currentFee + hospitalCharge // Always show sum of fee + charge
         };
       });
 
@@ -557,7 +557,9 @@ export default function PaymentsPage() {
   const totalPages = Math.ceil(meta.total / meta.limit);
   if (authLoading) return null;
 
-  const totalRevenue = payments.filter((p) => p.status === "Paid").reduce((s, p) => s + p.total_amount, 0);
+  const totalRevenue = payments
+    .filter((p) => p.status === "Paid")
+    .reduce((s, p) => s + Number(p.total_amount || 0), 0);
 
   return (
     <div className="animate-fade-in">
