@@ -297,7 +297,7 @@ function PasswordResetModal({ user, onClose }: { user: any; onClose: () => void 
   );
 }
 
-const ALLOWED: Role[] = ["Super Admin", "Hospital Admin", "Receptionist"];
+const ALLOWED: Role[] = ["Super Admin", "Hospital Admin"];
 const ALL_ROLES: Role[] = ["Super Admin", "Hospital Admin", "Receptionist", "Doctor", "Accountant"];
 
 export default function UsersPage() {

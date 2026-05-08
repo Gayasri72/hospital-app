@@ -45,9 +45,9 @@ const NAV: NavItem[] = [
   { label: "Reports",      href: "/reports",         icon: <PieChart className="w-4 h-4" />, roles: ["Super Admin","Hospital Admin","Accountant"] },
   {
     label: "Permissions", href: "/permissions", icon: <ShieldCheck className="w-4 h-4" />,
-    roles: ["Super Admin","Hospital Admin","Receptionist"],
+    roles: ["Super Admin", "Hospital Admin"],
     children: [
-      { label: "Users & Roles", href: "/permissions/users",     roles: ["Super Admin","Hospital Admin","Receptionist"] },
+      { label: "Users & Roles", href: "/permissions/users", roles: ["Super Admin", "Hospital Admin"] },
     ],
   },
 ];
