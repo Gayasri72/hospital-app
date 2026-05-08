@@ -42,24 +42,35 @@ export default function ReportsPage() {
 
       // Fallback: If specialized report returns 0 but we suspect there's data, fetch raw payments
       if (!data.total?.total_revenue || data.total?.total_revenue === 0) {
-        const rawPayments = await api.get("payments/", { params: range });
+        const rawPayments = await api.get("payments/", { params: { ...range, limit: 1000 } });
         const list = rawPayments.data.data || [];
         if (list.length > 0) {
-          const calculatedTotal = list.reduce((sum: number, p: any) => sum + (Number(p.total_amount) || 0), 0);
+          const calculatedTotal = list.reduce((sum: number, p: any) => {
+             // Consistency with PaymentsPage: fee + 2500
+             const fee = Number(p.doctor_fee || p.appointment?.doctor?.consultation_fee || 0);
+             const charge = Number(p.hospital_charge) || 2500;
+             return sum + (fee + charge);
+          }, 0);
+          
           data.total = {
             total_revenue: calculatedTotal,
             appointment_count: list.length
           };
           
           // Basic grouping for methods if report failed
-          const methods: Record<string, number> = {};
+          const methods: Record<string, { revenue: number, count: number }> = {};
           list.forEach((p: any) => {
             const m = p.transactions?.[0]?.method || "Other";
-            methods[m] = (methods[m] || 0) + (Number(p.total_amount) || 0);
+            const fee = Number(p.doctor_fee || p.appointment?.doctor?.consultation_fee || 0);
+            const charge = Number(p.hospital_charge) || 2500;
+            if (!methods[m]) methods[m] = { revenue: 0, count: 0 };
+            methods[m].revenue += (fee + charge);
+            methods[m].count += 1;
           });
-          data.byMethod = Object.entries(methods).map(([method, revenue]) => ({
+          data.byMethod = Object.entries(methods).map(([method, stats]) => ({
             payment_method: method,
-            total_revenue: revenue
+            total_revenue: stats.revenue,
+            appointment_count: stats.count
           }));
         }
       }
@@ -95,12 +106,103 @@ export default function ReportsPage() {
 
   useEffect(() => { if (user) loadData(); }, [user, loadData]);
 
+  const handleExportPDF = () => {
+    window.print();
+  };
+
+  const calculateNumericSummaries = () => {
+    if (!revenueData) return null;
+    return [
+      { label: "Gross Revenue", value: `Rs ${revenueData.total?.total_revenue?.toLocaleString() || 0}`, icon: <CreditCard className="w-4 h-4 text-green-600" /> },
+      { label: "Completed Appointments", value: revenueData.total?.appointment_count || 0, icon: <CheckCircle2 className="w-4 h-4 text-blue-600" /> },
+      { label: "Total Specializations", value: visitData.specializations?.length || 0, icon: <Target className="w-4 h-4 text-purple-600" /> },
+      { label: "Active Doctors", value: performanceData?.length || 0, icon: <UserCircle className="w-4 h-4 text-orange-600" /> },
+    ];
+  };
+
   if (authLoading || loading) {
     return <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 animate-spin text-blue-500" /></div>;
   }
 
   return (
     <div className="animate-fade-in pb-10 space-y-6">
+      {/* Printable Area (Hidden by default) */}
+      <div className="hidden print:block fixed inset-0 bg-white z-[9999] p-10 overflow-y-auto">
+        <div className="flex items-center justify-between border-b-2 border-gray-900 pb-6 mb-8">
+          <div className="flex items-center gap-4">
+            <div className="bg-blue-600 p-3 rounded-2xl">
+              <BarChart3 className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-black text-gray-900">Institutional Analytics Report</h1>
+              <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">MediCore Hospital Management System</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-xs font-bold text-gray-400">REPORT PERIOD</p>
+            <p className="text-sm font-black text-gray-900">{dayjs(range.start).format("MMM D")} — {dayjs(range.end).format("MMM D, YYYY")}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-8 mb-10">
+          <div className="border-2 border-gray-100 rounded-3xl p-8">
+            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Financial Summary</h3>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center py-2 border-b border-gray-50">
+                <span className="text-sm font-bold text-gray-600">Total Revenue Collected</span>
+                <span className="text-xl font-black text-green-600">Rs {revenueData.total?.total_revenue?.toLocaleString() || 0}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-gray-50">
+                <span className="text-sm font-bold text-gray-600">Total Patient Visits</span>
+                <span className="text-xl font-black text-blue-600">{revenueData.total?.appointment_count || 0}</span>
+              </div>
+            </div>
+          </div>
+          <div className="border-2 border-gray-100 rounded-3xl p-8">
+            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Doctor Performance (Top 5)</h3>
+            <div className="space-y-4">
+              {revenueData.byDoctor?.slice(0, 5).map((d: any) => (
+                <div key={d.doctor_id} className="flex justify-between items-center py-2 border-b border-gray-50">
+                  <span className="text-sm font-bold text-gray-600">{d.doctor_name}</span>
+                  <span className="text-sm font-black text-gray-900">Rs {d.total_revenue?.toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="border-2 border-gray-100 rounded-3xl p-8 mb-10">
+          <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-6">Revenue Distribution by Payment Method</h3>
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gray-50">
+                <th className="px-6 py-3 text-left text-[10px] font-black text-gray-400 uppercase">Payment Method</th>
+                <th className="px-6 py-3 text-right text-[10px] font-black text-gray-400 uppercase">Total Volume</th>
+                <th className="px-6 py-3 text-right text-[10px] font-black text-gray-400 uppercase">Gross Revenue (Rs)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {revenueData.byMethod?.map((m: any) => (
+                <tr key={m.payment_method} className="border-b border-gray-50">
+                  <td className="px-6 py-4 text-sm font-bold text-gray-900">{m.payment_method}</td>
+                  <td className="px-6 py-4 text-right text-sm text-gray-500">{m.appointment_count || "N/A"}</td>
+                  <td className="px-6 py-4 text-right text-sm font-black text-gray-900">{m.total_revenue?.toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        
+        <div className="mt-20 flex justify-between items-end">
+          <div>
+            <p className="text-[10px] text-gray-400 font-bold uppercase">System Generated Report</p>
+            <p className="text-[10px] text-gray-400 font-bold uppercase">Date: {dayjs().format("MMMM D, YYYY HH:mm")}</p>
+          </div>
+          <div className="border-t-2 border-gray-900 pt-2 w-48 text-center">
+            <p className="text-[10px] font-black uppercase">Authorized Signature</p>
+          </div>
+        </div>
+      </div>
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
         <div>
           <div className="flex items-center gap-3 mb-2">
@@ -146,7 +248,7 @@ export default function ReportsPage() {
               Apply Filters
             </button>
             
-            <button className="ml-auto inline-flex items-center gap-2 text-xs font-black text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 px-4 py-2.5 rounded-xl transition-all active:scale-95">
+            <button onClick={handleExportPDF} className="ml-auto inline-flex items-center gap-2 text-xs font-black text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 px-4 py-2.5 rounded-xl transition-all active:scale-95">
               <Download className="w-4 h-4" /> Export Report (PDF)
             </button>
           </div>
@@ -166,6 +268,20 @@ export default function ReportsPage() {
             </div>
           ) : (
             <>
+              {/* Quick Summary Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                {calculateNumericSummaries()?.map((m, i) => (
+                  <div key={i} className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-4 flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center">
+                      {m.icon}
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{m.label}</div>
+                      <div className="text-sm font-black text-gray-900 dark:text-white">{m.value}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 p-6 shadow-sm hover:shadow-md transition-all group">
                   <div className="flex items-center gap-4 mb-6">
