@@ -392,8 +392,9 @@ function CalendarView({ sessions, onDayClick }: {
 }
 
 // ─── Session Card ─────────────────────────────────────────
-function SessionCard({ session, onEdit, onRefresh }: { 
+function SessionCard({ session, user, onEdit, onRefresh }: { 
   session: Session; 
+  user: any;
   onEdit: (s: Session) => void;
   onRefresh: () => void;
 }) {
@@ -437,17 +438,21 @@ function SessionCard({ session, onEdit, onRefresh }: {
               className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition" title="View Queue">
               <Eye className="w-4 h-4" />
             </button>
-            <button onClick={() => onEdit(session)}
-              className="p-1.5 rounded-lg text-gray-400 hover:text-green-600 hover:bg-green-50 transition" title="Edit">
-              <Pencil className="w-4 h-4" />
-            </button>
+            {user?.role !== "Accountant" && (
+              <>
+                <button onClick={() => onEdit(session)}
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-green-600 hover:bg-green-50 transition" title="Edit">
+                  <Pencil className="w-4 h-4" />
+                </button>
+                <button onClick={() => handleDelete(session.session_id)}
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition" title="Delete">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </>
+            )}
             <button onClick={() => doctorId ? router.push(`/doctors/${doctorId}`) : toast.success("Doctor profile")}
               className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition" title="Doctor Profile">
               <Users className="w-4 h-4" />
-            </button>
-            <button onClick={() => handleDelete(session.session_id)}
-              className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition" title="Delete">
-              <Trash2 className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -536,10 +541,12 @@ export default function SessionsPage() {
               </button>
             ))}
           </div>
-          <button onClick={() => setModalOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors">
-            <Plus className="w-4 h-4" /> New Session
-          </button>
+          {user?.role !== "Accountant" && (
+            <button onClick={() => setModalOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors">
+              <Plus className="w-4 h-4" /> New Session
+            </button>
+          )}
         </div>
       </div>
 
@@ -564,7 +571,7 @@ export default function SessionsPage() {
                 <p className="text-sm text-gray-400">No sessions on this day.</p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {displayedSessions.map((s) => <SessionCard key={s.session_id} session={s} onEdit={setEditTarget} onRefresh={fetchSessions} />)}
+                  {displayedSessions.map((s) => <SessionCard key={s.session_id} session={s} user={user} onEdit={setEditTarget} onRefresh={fetchSessions} />)}
                 </div>
               )}
             </div>
@@ -579,7 +586,7 @@ export default function SessionsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {sessions.map((s) => (
-              <SessionCard key={s.session_id} session={s} onEdit={setEditTarget} onRefresh={fetchSessions} />
+              <SessionCard key={s.session_id} session={s} user={user} onEdit={setEditTarget} onRefresh={fetchSessions} />
             ))}
           </div>
         )

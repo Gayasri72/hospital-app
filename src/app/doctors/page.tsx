@@ -124,11 +124,13 @@ export default function DoctorsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Doctors</h1>
           <p className="text-gray-500 text-sm mt-1">{meta.total > 0 ? `${meta.total} doctors` : "Manage doctor profiles"}</p>
         </div>
-        <button onClick={() => router.push("/doctors/add")}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700
-                     text-white rounded-xl text-sm font-semibold transition-colors flex-shrink-0">
-          <Plus className="w-4 h-4" /> Add Doctor
-        </button>
+        {user?.role !== "Accountant" && (
+          <button onClick={() => router.push("/doctors/add")}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700
+                       text-white rounded-xl text-sm font-semibold transition-colors flex-shrink-0">
+            <Plus className="w-4 h-4" /> Add Doctor
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -191,14 +193,18 @@ export default function DoctorsPage() {
                       className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition" title="View">
                       <Eye className="w-4 h-4" />
                     </button>
-                    <button onClick={() => router.push(`/doctors/${doc.doctor_id}?edit=true`)}
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-green-600 hover:bg-green-50 transition" title="Edit">
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => handleDelete(doc.doctor_id)}
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition" title="Delete">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {user?.role !== "Accountant" && (
+                      <>
+                        <button onClick={() => router.push(`/doctors/${doc.doctor_id}?edit=true`)}
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-green-600 hover:bg-green-50 transition" title="Edit">
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleDelete(doc.doctor_id)}
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition" title="Delete">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

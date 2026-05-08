@@ -102,14 +102,16 @@ export default function PatientsPage() {
             {meta.total > 0 ? `${meta.total} patients registered` : "Manage patient registrations"}
           </p>
         </div>
-        <button
-          onClick={() => router.push("/patients/register")}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700
-                     text-white rounded-xl text-sm font-semibold transition-colors flex-shrink-0"
-        >
-          <Plus className="w-4 h-4" />
-          Register Patient
-        </button>
+        {user?.role !== "Accountant" && (
+          <button
+            onClick={() => router.push("/patients/register")}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700
+                       text-white rounded-xl text-sm font-semibold transition-colors flex-shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            Register Patient
+          </button>
+        )}
       </div>
 
       {/* Search */}
@@ -189,14 +191,18 @@ export default function PatientsPage() {
                           className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition" title="View">
                           <Eye className="w-4 h-4" />
                         </button>
-                        <button onClick={() => router.push(`/patients/${p.patient_id}?edit=true`)}
-                          className="p-1.5 rounded-lg text-gray-400 hover:text-green-600 hover:bg-green-50 transition" title="Edit">
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => handleDelete(p.patient_id)}
-                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition" title="Delete">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {user?.role !== "Accountant" && (
+                          <>
+                            <button onClick={() => router.push(`/patients/${p.patient_id}?edit=true`)}
+                              className="p-1.5 rounded-lg text-gray-400 hover:text-green-600 hover:bg-green-50 transition" title="Edit">
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => handleDelete(p.patient_id)}
+                              className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition" title="Delete">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
