@@ -5,7 +5,7 @@ import toast from "react-hot-toast";
 import {
   CreditCard, Search, Loader2, X, Printer,
   ChevronLeft, ChevronRight, Receipt, CheckCircle2,
-  Banknote, Smartphone, Building2, Shield,
+  Banknote, Smartphone, Building2, Shield, RefreshCw
 } from "lucide-react";
 import { useRequireAuth } from "@/hooks/useAuth";
 import api from "@/lib/api";
@@ -406,12 +406,35 @@ function PaymentFormModal({ payment, onClose, onPaid }: {
     }
   }
 
+  async function handleRecalculate() {
+    setLoading(true);
+    try {
+      const res = await api.post(`payments/${payment.payment_id}/recalculate`);
+      const data = res.data.data;
+      if (data) {
+        setDoctorFee(data.doctor_amount || doctorFee);
+        setHospitalCharge(data.hospital_amount || hospitalCharge);
+      }
+      toast.success(res.data.message || "Totals recalculated!");
+    } catch (err: any) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 animate-fade-in" onClick={onClose} />
       <div className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-sm animate-slide-in">
         <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-800">
-          <h2 className="font-bold text-gray-900">Process Payment</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="font-bold text-gray-900">Process Payment</h2>
+            <button onClick={handleRecalculate} disabled={loading}
+              className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition border border-blue-100" title="Recalculate Fees">
+              <RefreshCw className={cn("w-3.5 h-3.5", loading && "animate-spin")} />
+            </button>
+          </div>
           <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 transition"><X className="w-4 h-4" /></button>
         </div>
         <div className="p-5 space-y-4">
@@ -486,6 +509,20 @@ export default function PaymentsPage() {
   const [meta, setMeta] = useState({ total: 0, page: 1, limit: 20 });
   const [payTarget, setPayTarget]     = useState<Payment | null>(null);
   const [receiptTarget, setReceiptTarget] = useState<Payment | null>(null);
+  const [recalculating, setRecalculating] = useState<string | null>(null);
+
+  const handleRecalculate = async (id: string) => {
+    setRecalculating(id);
+    try {
+      const res = await api.post(`payments/${id}/recalculate`);
+      toast.success(res.data.message || "Totals recalculated!");
+      fetchPayments();
+    } catch (err: any) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setRecalculating(null);
+    }
+  };
 
   const fetchPayments = useCallback(async () => {
     setLoading(true);
@@ -648,10 +685,18 @@ export default function PaymentsPage() {
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-2 justify-end">
                         {p.status.toLowerCase() === "pending" && (
-                          <button onClick={() => setPayTarget(p)}
-                            className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-semibold transition shadow-sm hover:shadow-md">
-                            Pay Now
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button onClick={() => handleRecalculate(p.payment_id)}
+                              disabled={recalculating === p.payment_id}
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition border border-transparent hover:border-blue-100"
+                              title="Recalculate totals">
+                              <RefreshCw className={cn("w-3.5 h-3.5", recalculating === p.payment_id && "animate-spin")} />
+                            </button>
+                            <button onClick={() => setPayTarget(p)}
+                              className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-semibold transition shadow-sm hover:shadow-md">
+                              Pay Now
+                            </button>
+                          </div>
                         )}
                         {p.status === "Paid" && (
                           <button onClick={() => setReceiptTarget(p)}
