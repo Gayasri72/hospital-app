@@ -296,11 +296,10 @@ function Sidebar({ userRole, userName, onClose }: {
   };
 
   const groups = [
-    { label: "Overview",        items: NAV.slice(0, 1) },
-    { label: "Core Operations", items: NAV.slice(1, 6) },
-    { label: "Finance",         items: NAV.slice(6, 7) },
-    { label: "Insights",        items: NAV.slice(7, 8) },
-    { label: "Admin",           items: NAV.slice(8, 9) },
+    { label: "Overview",        items: NAV.slice(0, 1) }, // Dashboard
+    { label: "Core Operations", items: NAV.slice(1, 5) }, // Patients, Doctors, Sessions, Appointments
+    { label: "Finance",         items: NAV.slice(5, 7) }, // Payments, Reports
+    { label: "Admin",           items: NAV.slice(7, 8) }, // Permissions
   ];
 
   return (
