@@ -2,7 +2,7 @@ import axios from "axios";
 
 const rawBaseUrl =
 
-  process.env.NEXT_PUBLIC_API_URL || "https://hospital-management-system.vercel.app/api/v1";
+  process.env.NEXT_PUBLIC_API_URL || "https://hospital-managemnt-system.vercel.app/api/v1";
 
 const BASE_URL = rawBaseUrl.endsWith("/") ? rawBaseUrl : `${rawBaseUrl}/`;
 
