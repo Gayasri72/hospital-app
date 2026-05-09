@@ -354,37 +354,16 @@ function PaymentFormModal({ payment, onClose, onPaid }: {
       try {
         await api.post(`payments/${payment.payment_id}/transactions`, payload);
       } catch (transErr: any) {
-        const isBalanceError = transErr.response?.data?.code === 'AMOUNT_EXCEEDS_BALANCE' || 
-                              transErr.response?.data?.message?.includes('exceeds remaining balance');
+        const errorData = transErr.response?.data;
+        const isBalanceError = errorData?.code === 'AMOUNT_EXCEEDS_BALANCE' || 
+                              errorData?.message?.includes('exceeds remaining balance');
         
-        if (isBalanceError && payment.appointment?.appointment_id) {
-          console.log("Balance mismatch detected. Attempting to re-create payment record with current fees...");
-          try {
-            // A. Re-create the payment record with the CORRECT amounts from the start
-            // This ensures the backend initializes the balance correctly.
-            const newPaymentRes = await api.post("payments", {
-              appointment_id: payment.appointment.appointment_id,
-              doctor_fee: Number(doctorFee),
-              hospital_charge: Number(hospitalCharge),
-              total_amount: totalAmount
-            });
-            const newPaymentId = newPaymentRes.data.data.payment_id;
-            
-            // B. Retry the transaction with the NEW payment ID
-            payload.payment_id = newPaymentId;
-            await api.post(`payments/${newPaymentId}/transactions`, payload);
-            
-            toast.success("Payment recorded (record synchronized)!");
-            onPaid();
-            onClose();
-            return;
-          } catch (hackErr) {
-            console.error("Re-creation hack failed:", hackErr);
-            throw transErr; // Throw original error if hack fails
-          }
-        } else {
-          throw transErr;
+        if (isBalanceError) {
+          // If balance mismatch, suggest recalculating
+          toast.error("Amount exceeds balance. Try clicking the 'Recalculate' button to sync fees.", { duration: 6000 });
+          return;
         }
+        throw transErr;
       }
       
       toast.success("Payment recorded successfully!");
