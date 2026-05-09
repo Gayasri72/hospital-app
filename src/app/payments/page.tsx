@@ -333,22 +333,7 @@ function PaymentFormModal({ payment, onClose, onPaid }: {
         payload.branch_id = user.branch_id;
       }
       
-      // 1. Optional: Try to update the payment record's amounts (if the endpoint exists)
-      // This is a "best effort" to sync the record before the transaction.
-      // We ignore failures here because the transaction step below handles recovery.
-      try {
-        const updateData = {
-          doctor_fee: Number(doctorFee),
-          hospital_charge: Number(hospitalCharge),
-          total_amount: totalAmount
-        };
-        // Try multiple endpoint patterns
-        await api.put(`payments/${payment.payment_id}`, updateData).catch(async () => {
-          await api.patch(`payments/${payment.payment_id}`, updateData).catch(async () => {
-            await api.post(`payments/${payment.payment_id}/update`, updateData).catch(() => {});
-          });
-        });
-      } catch (err) {}
+      // No longer trying unsupported update endpoints (they cause 404s in console)
 
       // 1. Process the transaction directly
       try {
