@@ -18,6 +18,7 @@ import { appointmentsService } from "@/lib/api/services/appointments.service";
 import { sessionsService } from "@/lib/api/services/sessions.service";
 import { patientsService } from "@/lib/api/services/patients.service";
 import { paymentsService } from "@/lib/api/services/payments.service";
+import { doctorsService } from "@/lib/api/services/doctors.service";
 import { getErrorMessage, getApiErrorCode } from "@/lib/utils/errors";
 import { formatCurrency, formatDate, formatTime } from "@/lib/utils/format";
 import { createAppointmentSchema, paymentTransactionSchema, type CreateAppointmentFormValues, type PaymentTransactionFormValues } from "@/lib/validators/appointment.schema";
@@ -52,9 +53,28 @@ function CreateAppointmentModal({ open, onOpenChange }: { open: boolean; onOpenC
     enabled: open,
   });
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<CreateAppointmentFormValues>({
+  const { register, handleSubmit, reset, watch, formState: { errors, isSubmitting } } = useForm<CreateAppointmentFormValues>({
     resolver: zodResolver(createAppointmentSchema),
   });
+
+  const selectedSessionId = watch("session_id");
+  const selectedSession = sessionsData?.data.find((s) => s.session_id === selectedSessionId);
+
+  const { data: doctor } = useQuery({
+    queryKey: ["doctors", selectedSession?.doctor_id],
+    queryFn: () => doctorsService.get(selectedSession!.doctor_id),
+    enabled: !!selectedSession?.doctor_id,
+  });
+
+  const { data: hospitalCharge } = useQuery({
+    queryKey: ["hospital-charge"],
+    queryFn: doctorsService.getHospitalCharge,
+    enabled: !!selectedSession,
+  });
+
+  const consultationFee = doctor?.currentFee ? parseFloat(doctor.currentFee.consultation_fee) : null;
+  const hospCharge = hospitalCharge ? parseFloat(hospitalCharge.charge_amount) : null;
+  const totalFee = consultationFee !== null && hospCharge !== null ? consultationFee + hospCharge : null;
 
   const createMutation = useMutation({
     mutationFn: appointmentsService.create,
@@ -99,6 +119,32 @@ function CreateAppointmentModal({ open, onOpenChange }: { open: boolean; onOpenC
             </select>
             {errors.session_id && <p className="mt-1 text-xs text-red-600">{errors.session_id.message}</p>}
           </div>
+
+          {/* Fee preview — shown once a session is selected */}
+          {selectedSession && (
+            <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm space-y-1.5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-blue-500 mb-1">Fee Breakdown</p>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Doctor Fee</span>
+                <span className="font-medium text-gray-800">
+                  {consultationFee !== null ? formatCurrency(consultationFee) : <span className="text-amber-600">Not set</span>}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Hospital Charge</span>
+                <span className="font-medium text-gray-800">
+                  {hospCharge !== null ? formatCurrency(hospCharge) : <span className="text-amber-600">Not set</span>}
+                </span>
+              </div>
+              <div className="flex justify-between border-t border-blue-200 pt-1.5">
+                <span className="font-semibold text-gray-700">Total</span>
+                <span className="font-bold text-blue-700">
+                  {totalFee !== null ? formatCurrency(totalFee) : "—"}
+                </span>
+              </div>
+            </div>
+          )}
+
           <div>
             <Label>Patient *</Label>
             <select {...register("patient_id")}

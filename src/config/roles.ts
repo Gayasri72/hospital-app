@@ -35,6 +35,7 @@ export const CAN_BOOK_APPOINTMENTS: Role[] = ["Super Admin", "Hospital Admin", "
 export const CAN_COMPLETE_APPOINTMENTS: Role[] = ["Super Admin", "Hospital Admin", "Doctor"];
 export const CAN_VIEW_PATIENTS: Role[] = ["Super Admin", "Hospital Admin", "Receptionist", "Doctor", "Accountant"];
 export const CAN_MANAGE_PATIENTS: Role[] = ["Super Admin", "Hospital Admin", "Receptionist"];
+export const CAN_DELETE_PATIENTS: Role[] = ["Super Admin", "Hospital Admin"];
 export const CAN_VIEW_MEDICAL_RECORDS: Role[] = ["Super Admin", "Hospital Admin", "Doctor"];
 export const CAN_WRITE_MEDICAL_RECORDS: Role[] = ["Doctor"];
 

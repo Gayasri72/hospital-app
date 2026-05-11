@@ -24,7 +24,7 @@ import { getErrorMessage } from "@/lib/utils/errors";
 import { formatDate } from "@/lib/utils/format";
 
 const prescriptionSchema = z.object({
-  medicine_name: z.string().min(1, "Required"),
+  medicine_name: z.string().min(2, "Medicine name must be at least 2 characters"),
   dosage: z.string().min(1, "Required"),
   frequency: z.string().min(1, "Required"),
   duration: z.string().min(1, "Required"),
@@ -33,7 +33,7 @@ const prescriptionSchema = z.object({
 
 const schema = z.object({
   appointment_id: z.string().min(1, "Select an appointment"),
-  diagnosis: z.string().min(1, "Diagnosis is required"),
+  diagnosis: z.string().min(5, "Diagnosis must be at least 5 characters"),
   notes: z.string().optional(),
   follow_up_date: z.string().optional(),
   prescriptions: z.array(prescriptionSchema),

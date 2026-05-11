@@ -5,24 +5,25 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import toast from "react-hot-toast";
-import { Plus, Search, Pencil, User, Stethoscope } from "lucide-react";
+import { Plus, Search, Pencil, User, Stethoscope, Eye, Trash2 } from "lucide-react";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import { PageLoader } from "@/components/common/LoadingSpinner";
 import { EmptyState } from "@/components/common/EmptyState";
+import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { patientsService } from "@/lib/api/services/patients.service";
 import { appointmentsService } from "@/lib/api/services/appointments.service";
 import { getErrorMessage } from "@/lib/utils/errors";
-import { formatDate } from "@/lib/utils/format";
+import { formatDate, formatCurrency } from "@/lib/utils/format";
 import { patientSchema, type PatientFormValues } from "@/lib/validators/patient.schema";
 import { useDebounce } from "@/hooks/useDebounce";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuthStore } from "@/store/auth.store";
-import { CAN_MANAGE_PATIENTS } from "@/config/roles";
+import { CAN_MANAGE_PATIENTS, CAN_DELETE_PATIENTS } from "@/config/roles";
 import type { Patient } from "@/types";
 
 const GENDERS = ["Male", "Female", "Other"] as const;
@@ -167,6 +168,136 @@ function PatientFormModal({
   );
 }
 
+function PatientDetailModal({
+  open,
+  onOpenChange,
+  patient,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  patient: Patient | null;
+}) {
+  const { data: appointments, isLoading } = useQuery({
+    queryKey: ["appointments", { patient_id: patient?.patient_id }],
+    queryFn: () => appointmentsService.list({ patient_id: patient!.patient_id, limit: 20 }),
+    enabled: open && !!patient,
+  });
+
+  if (!patient) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{patient.name}</DialogTitle>
+          <DialogDescription>Patient profile and appointment history</DialogDescription>
+        </DialogHeader>
+
+        {/* Patient info */}
+        <div className="grid grid-cols-2 gap-x-6 gap-y-2 rounded-lg border border-gray-100 bg-gray-50 p-4 text-sm">
+          {[
+            ["NIC", patient.nic],
+            ["Phone", patient.phone],
+            ["Email", patient.email || "—"],
+            ["Gender", patient.profile?.gender || "—"],
+            ["Age", patient.profile?.age?.toString() || "—"],
+            ["Address", patient.profile?.address || "—"],
+            ["Emergency Contact", patient.profile?.emergency_contact || "—"],
+            ["Registered", formatDate(patient.created_at)],
+          ].map(([label, value]) => (
+            <div key={label}>
+              <p className="text-xs text-gray-400">{label}</p>
+              <p className="font-medium text-gray-800">{value}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Appointment history */}
+        <div>
+          <h3 className="mb-2 text-sm font-semibold text-gray-700">Appointment History</h3>
+          {isLoading ? (
+            <p className="py-4 text-center text-sm text-gray-400">Loading…</p>
+          ) : !appointments?.data.length ? (
+            <p className="py-4 text-center text-sm text-gray-400">No appointments found.</p>
+          ) : (
+            <div className="rounded-lg border border-gray-200 overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50">
+                  <tr className="text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    <th className="px-3 py-2">#</th>
+                    <th className="px-3 py-2">Doctor</th>
+                    <th className="px-3 py-2">Date</th>
+                    <th className="px-3 py-2">Status</th>
+                    <th className="px-3 py-2 text-right">Fee</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {appointments.data.map((a) => (
+                    <tr key={a.appointment_id} className="hover:bg-gray-50">
+                      <td className="px-3 py-2 font-mono text-xs text-gray-500">{a.queue_number}</td>
+                      <td className="px-3 py-2 text-gray-700">{a.doctor ? `Dr. ${a.doctor.name}` : "—"}</td>
+                      <td className="px-3 py-2 text-gray-600">{formatDate(a.session?.session_date)}</td>
+                      <td className="px-3 py-2"><StatusBadge status={a.status} /></td>
+                      <td className="px-3 py-2 text-right font-medium">{formatCurrency(a.total_fee)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter showCloseButton />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DeleteConfirmDialog({
+  open,
+  onOpenChange,
+  patient,
+  onConfirm,
+  isPending,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  patient: Patient | null;
+  onConfirm: () => void;
+  isPending: boolean;
+}) {
+  if (!patient) return null;
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Delete Patient</DialogTitle>
+          <DialogDescription>
+            This action is permanent and cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+        <p className="text-sm text-gray-600">
+          Are you sure you want to delete <span className="font-semibold">{patient.name}</span> (NIC: {patient.nic})?
+          This will only succeed if the patient has no appointment records.
+        </p>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={onConfirm}
+            disabled={isPending}
+            className="bg-red-600 hover:bg-red-700 text-white"
+          >
+            {isPending ? "Deleting…" : "Delete Patient"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function DoctorPatientsView({ doctorId }: { doctorId: string }) {
   const { data, isLoading } = useQuery({
     queryKey: ["appointments", "doctor-patients", doctorId],
@@ -241,9 +372,11 @@ function DoctorPatientsView({ doctorId }: { doctorId: string }) {
 export default function PatientsPage() {
   const user = useAuthStore((s) => s.user);
   const isDoctor = user?.role === "Doctor";
+  const qc = useQueryClient();
 
   const { can } = usePermissions();
   const canManage = can(CAN_MANAGE_PATIENTS);
+  const canDelete = can(CAN_DELETE_PATIENTS);
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -251,11 +384,23 @@ export default function PatientsPage() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Patient | undefined>();
+  const [viewTarget, setViewTarget] = useState<Patient | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Patient | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["patients", { search: debouncedSearch, page }],
     queryFn: () => patientsService.list({ search: debouncedSearch, page, limit: 15 }),
     enabled: !isDoctor,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => patientsService.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["patients"] });
+      toast.success("Patient deleted successfully");
+      setDeleteTarget(null);
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
   });
 
   if (isDoctor) {
@@ -321,7 +466,7 @@ export default function PatientsPage() {
                     <th className="px-4 py-3">Phone</th>
                     <th className="px-4 py-3">Gender</th>
                     <th className="px-4 py-3">Age</th>
-                    {canManage && <th className="px-4 py-3 text-right">Actions</th>}
+                    <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -332,17 +477,35 @@ export default function PatientsPage() {
                       <td className="px-4 py-3 text-gray-600">{patient.phone}</td>
                       <td className="px-4 py-3 text-gray-600">{patient.profile?.gender ?? "—"}</td>
                       <td className="px-4 py-3 text-gray-600">{patient.profile?.age ?? "—"}</td>
-                      {canManage && (
-                        <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
                           <button
-                            onClick={() => { setEditTarget(patient); setModalOpen(true); }}
-                            className="rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-                            title="Edit"
+                            onClick={() => setViewTarget(patient)}
+                            className="rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-blue-600"
+                            title="View details"
                           >
-                            <Pencil className="h-3.5 w-3.5" />
+                            <Eye className="h-3.5 w-3.5" />
                           </button>
-                        </td>
-                      )}
+                          {canManage && (
+                            <button
+                              onClick={() => { setEditTarget(patient); setModalOpen(true); }}
+                              className="rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                              title="Edit"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              onClick={() => setDeleteTarget(patient)}
+                              className="rounded p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600"
+                              title="Delete"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -363,6 +526,14 @@ export default function PatientsPage() {
       </div>
 
       <PatientFormModal open={modalOpen} onOpenChange={setModalOpen} patient={editTarget} />
+      <PatientDetailModal open={!!viewTarget} onOpenChange={(o) => { if (!o) setViewTarget(null); }} patient={viewTarget} />
+      <DeleteConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
+        patient={deleteTarget}
+        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.patient_id)}
+        isPending={deleteMutation.isPending}
+      />
     </DashboardShell>
   );
 }

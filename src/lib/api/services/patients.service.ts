@@ -35,4 +35,7 @@ export const patientsService = {
 
   update: (id: string, body: UpdatePatientRequest) =>
     apiClient.put<ApiSuccess<Patient>>(`/patients/${id}`, body).then((r) => r.data.data),
+
+  delete: (id: string) =>
+    apiClient.delete<ApiSuccess<null>>(`/patients/${id}`).then((r) => r.data),
 };
