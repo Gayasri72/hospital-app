@@ -6,7 +6,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import toast from "react-hot-toast";
 import { ChevronUp, ChevronDown } from "lucide-react";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { sessionsService } from "@/lib/api/services/sessions.service";
 import { doctorsService } from "@/lib/api/services/doctors.service";
@@ -289,6 +289,9 @@ export function SessionFormModal({
         <DialogTitle className="sr-only">
           {isEdit ? "Edit Session" : "Create Session"}
         </DialogTitle>
+        <DialogDescription className="sr-only">
+          {isEdit ? "Update the session details below." : "Fill in the details to schedule a new doctor session."}
+        </DialogDescription>
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 bg-gray-50 border-b border-gray-100">
           <div>

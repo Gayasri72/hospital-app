@@ -10,6 +10,7 @@ import { Plus, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -109,6 +110,9 @@ export function MedicalRecordFormModal({ open, onOpenChange, doctorId }: Props) 
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Write Medical Record</DialogTitle>
+          <DialogDescription>
+            Select a completed appointment and fill in the diagnosis, notes, and prescriptions.
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
