@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import toast from "react-hot-toast";
 import Link from "next/link";
@@ -29,6 +29,65 @@ import type { ChannelSession } from "@/types";
 // Only these statuses can be set via the API
 const STATUS_CHANGE_OPTIONS = ["open", "closed", "cancelled"] as const;
 
+const HOURS = Array.from({ length: 12 }, (_, i) => String(i + 1));
+const MINUTES = ["00", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55"];
+
+function TimePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  // Parse "HH:MM" 24h → internal state
+  const toState = (v: string) => {
+    if (!v) return { h: "8", m: "00", period: "AM" };
+    const [hStr, mStr] = v.split(":");
+    const h24 = parseInt(hStr, 10);
+    const period = h24 >= 12 ? "PM" : "AM";
+    const h12 = h24 === 0 ? 12 : h24 > 12 ? h24 - 12 : h24;
+    return { h: String(h12), m: mStr ?? "00", period };
+  };
+
+  // Convert back to "HH:MM" 24h string
+  const to24h = (h: string, m: string, period: string) => {
+    let h24 = parseInt(h, 10);
+    if (period === "AM" && h24 === 12) h24 = 0;
+    if (period === "PM" && h24 !== 12) h24 += 12;
+    return `${String(h24).padStart(2, "0")}:${m}`;
+  };
+
+  const { h, m, period } = toState(value);
+
+  const update = (newH: string, newM: string, newPeriod: string) =>
+    onChange(to24h(newH, newM, newPeriod));
+
+  const selectClass =
+    "rounded-md border border-input bg-background px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
+
+  return (
+    <div className="flex items-center gap-1.5 mt-1">
+      <select value={h} onChange={(e) => update(e.target.value, m, period)} className={`${selectClass} w-16`}>
+        {HOURS.map((hr) => <option key={hr} value={hr}>{hr}</option>)}
+      </select>
+      <span className="text-gray-400 font-medium">:</span>
+      <select value={m} onChange={(e) => update(h, e.target.value, period)} className={`${selectClass} w-16`}>
+        {MINUTES.map((mn) => <option key={mn} value={mn}>{mn}</option>)}
+      </select>
+      <div className="flex rounded-md border border-input overflow-hidden">
+        {(["AM", "PM"] as const).map((p) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => update(h, m, p)}
+            className={`px-3 py-2 text-xs font-medium transition-colors ${
+              period === p
+                ? "bg-blue-600 text-white"
+                : "bg-background text-gray-500 hover:bg-gray-50"
+            }`}
+          >
+            {p}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function SessionFormModal({
   open, onOpenChange, session,
 }: { open: boolean; onOpenChange: (open: boolean) => void; session?: ChannelSession }) {
@@ -47,7 +106,7 @@ function SessionFormModal({
     enabled: open,
   });
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<SessionFormValues>({
+  const { register, handleSubmit, reset, control, formState: { errors, isSubmitting } } = useForm<SessionFormValues>({
     resolver: zodResolver(sessionSchema),
     defaultValues: session
       ? {
@@ -58,7 +117,7 @@ function SessionFormModal({
           end_time: session.end_time.slice(0, 5),
           max_patients: session.max_patients,
         }
-      : {},
+      : { start_time: "08:00", end_time: "12:00" },
   });
 
   const createMutation = useMutation({
@@ -112,12 +171,20 @@ function SessionFormModal({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Start Time *</Label>
-              <Input type="time" {...register("start_time")} className="mt-1" />
+              <Controller
+                name="start_time"
+                control={control}
+                render={({ field }) => <TimePicker value={field.value ?? ""} onChange={field.onChange} />}
+              />
               {errors.start_time && <p className="mt-1 text-xs text-red-600">{errors.start_time.message}</p>}
             </div>
             <div>
               <Label>End Time *</Label>
-              <Input type="time" {...register("end_time")} className="mt-1" />
+              <Controller
+                name="end_time"
+                control={control}
+                render={({ field }) => <TimePicker value={field.value ?? ""} onChange={field.onChange} />}
+              />
               {errors.end_time && <p className="mt-1 text-xs text-red-600">{errors.end_time.message}</p>}
             </div>
           </div>
