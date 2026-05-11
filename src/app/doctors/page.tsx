@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import toast from "react-hot-toast";
-import { Plus, Search, Pencil, Stethoscope, DollarSign, Building2, AlertCircle } from "lucide-react";
+import { Plus, Search, Pencil, Stethoscope, DollarSign } from "lucide-react";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import { PageLoader } from "@/components/common/LoadingSpinner";
@@ -21,7 +21,6 @@ import { doctorSchema, doctorFeeSchema, type DoctorFormValues, type DoctorFeeFor
 import { useDebounce } from "@/hooks/useDebounce";
 import { usePermissions } from "@/hooks/usePermissions";
 import { CAN_MANAGE_DOCTORS } from "@/config/roles";
-import { z } from "zod";
 import type { Doctor } from "@/types";
 
 function DoctorFormModal({
@@ -236,67 +235,6 @@ function SetFeeModal({ open, onOpenChange, doctor }: { open: boolean; onOpenChan
   );
 }
 
-const hospitalChargeSchema = z.object({
-  charge_amount: z.number({ error: "Amount must be a number" }).min(0, "Amount must be 0 or greater"),
-  effective_from: z.string().optional(),
-});
-type HospitalChargeFormValues = z.infer<typeof hospitalChargeSchema>;
-
-function SetHospitalChargeModal({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
-  const qc = useQueryClient();
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<HospitalChargeFormValues>({
-    resolver: zodResolver(hospitalChargeSchema),
-    defaultValues: { charge_amount: 0, effective_from: new Date().toISOString().slice(0, 10) },
-  });
-
-  useEffect(() => {
-    if (!open) return;
-    reset({ charge_amount: 0, effective_from: new Date().toISOString().slice(0, 10) });
-  }, [open]);
-
-  const mutation = useMutation({
-    mutationFn: (data: HospitalChargeFormValues) => {
-      const today = new Date().toISOString().slice(0, 10);
-      const effective_from = data.effective_from === today || !data.effective_from
-        ? new Date().toISOString()
-        : data.effective_from;
-      return doctorsService.setHospitalCharge({ charge_amount: data.charge_amount, effective_from });
-    },
-    onSuccess: () => {
-      qc.refetchQueries({ queryKey: ["hospitalCharge"] });
-      toast.success("Hospital charge updated");
-      onOpenChange(false);
-    },
-    onError: (err) => toast.error(getErrorMessage(err)),
-  });
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle>Set Hospital Charge</DialogTitle></DialogHeader>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <p className="text-xs text-gray-500">
-            This is the hospital&apos;s service fee added on top of the doctor&apos;s consultation fee for every appointment.
-          </p>
-          <div>
-            <Label>Charge Amount (Rs) *</Label>
-            <Input type="number" step="0.01" min="0" {...register("charge_amount", { valueAsNumber: true })} className="mt-1" />
-            {errors.charge_amount && <p className="mt-1 text-xs text-red-600">{errors.charge_amount.message}</p>}
-          </div>
-          <div>
-            <Label>Effective From</Label>
-            <Input type="date" {...register("effective_from")} className="mt-1" />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" type="button" onClick={() => onOpenChange(false)} disabled={isSubmitting}>Cancel</Button>
-            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Saving…" : "Set Charge"}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 export default function DoctorsPage() {
   const { can } = usePermissions();
   const canManage = can(CAN_MANAGE_DOCTORS);
@@ -307,19 +245,12 @@ export default function DoctorsPage() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [feeModalOpen, setFeeModalOpen] = useState(false);
-  const [chargeModalOpen, setChargeModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Doctor | undefined>();
   const [feeTarget, setFeeTarget] = useState<Doctor | undefined>();
 
   const { data, isLoading } = useQuery({
     queryKey: ["doctors", { search: debouncedSearch, page }],
     queryFn: () => doctorsService.list({ search: debouncedSearch, page, limit: 15 }),
-  });
-
-  const { data: hospitalCharge } = useQuery({
-    queryKey: ["hospitalCharge"],
-    queryFn: () => doctorsService.getHospitalCharge(),
-    enabled: canManage,
   });
 
   return (
@@ -407,34 +338,8 @@ export default function DoctorsPage() {
         )}
       </div>
 
-      {/* Hospital charge configuration — only visible to admins */}
-      {canManage && (
-        <div className={`mt-4 rounded-xl border px-4 py-3 flex items-center justify-between gap-4 ${!hospitalCharge ? "border-amber-200 bg-amber-50" : "border-gray-200 bg-white"}`}>
-          <div className="flex items-center gap-3 min-w-0">
-            {!hospitalCharge
-              ? <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
-              : <Building2 className="h-4 w-4 text-gray-400 shrink-0" />}
-            <div className="min-w-0">
-              <p className={`text-sm font-medium ${!hospitalCharge ? "text-amber-800" : "text-gray-800"}`}>
-                Hospital Service Charge
-              </p>
-              <p className="text-xs text-gray-500 truncate">
-                {hospitalCharge
-                  ? `${formatCurrency(hospitalCharge.charge_amount)} · effective ${formatDate(hospitalCharge.effective_from)}`
-                  : "Not configured — appointments cannot be booked until a hospital charge is set"}
-              </p>
-            </div>
-          </div>
-          <Button size="sm" variant={hospitalCharge ? "outline" : "default"} onClick={() => setChargeModalOpen(true)} className="shrink-0">
-            <DollarSign className="mr-1.5 h-3.5 w-3.5" />
-            {hospitalCharge ? "Update Charge" : "Set Charge"}
-          </Button>
-        </div>
-      )}
-
       <DoctorFormModal open={modalOpen} onOpenChange={setModalOpen} doctor={editTarget} />
       <SetFeeModal open={feeModalOpen} onOpenChange={setFeeModalOpen} doctor={feeTarget} />
-      <SetHospitalChargeModal open={chargeModalOpen} onOpenChange={setChargeModalOpen} />
     </DashboardShell>
   );
 }
