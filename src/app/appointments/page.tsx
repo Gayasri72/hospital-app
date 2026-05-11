@@ -218,6 +218,15 @@ export default function AppointmentsPage() {
     onError: (err) => toast.error(getErrorMessage(err)),
   });
 
+  const createPaymentMutation = useMutation({
+    mutationFn: (appointmentId: string) => paymentsService.create({ appointment_id: appointmentId }),
+    onSuccess: (payment) => {
+      qc.invalidateQueries({ queryKey: ["appointments"] });
+      setPaymentModal({ open: true, payment });
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  });
+
   const STATUSES: Array<AppointmentStatus | ""> = ["", "booked", "confirmed", "arrived", "completed", "cancelled", "no_show"];
 
   return (
@@ -295,6 +304,13 @@ export default function AppointmentsPage() {
                         <td className="px-4 py-3"><StatusBadge status={appt.status} /></td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-2">
+                            {canPay && appt.status === "completed" && !appt.payment && (
+                              <Button variant="default" size="sm"
+                                disabled={createPaymentMutation.isPending}
+                                onClick={() => createPaymentMutation.mutate(appt.appointment_id)}>
+                                Pay
+                              </Button>
+                            )}
                             {canPay && appt.payment && balance > 0 && (
                               <Button variant="outline" size="sm"
                                 onClick={() => setPaymentModal({ open: true, payment: appt.payment! })}>
