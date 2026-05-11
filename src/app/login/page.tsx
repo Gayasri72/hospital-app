@@ -1,43 +1,42 @@
 "use client";
-import { useState, FormEvent } from "react";
+
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { Eye, EyeOff, Hospital, Loader2 } from "lucide-react";
-import api from "@/lib/api";
-import { useAuthStore } from "@/store/authStore";
-import { AuthUser } from "@/types";
-import { getErrorMessage } from "@/lib/utils";
+import { useAuthStore } from "@/store/auth.store";
+import { authService } from "@/lib/api/services/auth.service";
+import { getErrorMessage } from "@/lib/utils/errors";
+import { loginSchema, type LoginFormValues } from "@/lib/validators/auth.schema";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { setUser } = useAuthStore();
+  const { setAuth } = useAuthStore();
+  const [showPassword, setShowPassword] = useState(false);
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPass, setShowPass] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+  });
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    setLoading(true);
+  async function onSubmit(values: LoginFormValues) {
     try {
-      const res = await api.post("auth/login", { email, password });
-      const { accessToken, user } = res.data.data as {
-        accessToken: string;
-        user: AuthUser;
-      };
-      setUser(user, accessToken);
+      const { accessToken, user } = await authService.login(values);
+      setAuth(user, accessToken);
       toast.success(`Welcome back, ${user.name}!`);
       router.replace("/dashboard");
     } catch (err) {
       const msg = getErrorMessage(err);
-      if (msg.toLowerCase().includes("429") || msg.toLowerCase().includes("many")) {
+      if (msg.includes("429") || msg.toLowerCase().includes("many")) {
         toast.error("Too many login attempts. Please wait 15 minutes.");
       } else {
         toast.error("Invalid email or password");
       }
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -57,8 +56,7 @@ export default function LoginPage() {
             Streamline your hospital operations
           </h1>
           <p className="text-blue-100 text-base leading-relaxed">
-            Manage appointments, doctors, patients, and billing — all in one
-            centralized platform built for modern healthcare.
+            Manage appointments, doctors, patients, and billing — all in one centralized platform.
           </p>
         </div>
 
@@ -77,10 +75,9 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Right panel — login form */}
+      {/* Right panel */}
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-md">
-          {/* Mobile logo */}
           <div className="flex items-center gap-3 mb-8 lg:hidden">
             <div className="bg-blue-600 rounded-xl p-2">
               <Hospital className="w-5 h-5 text-white" />
@@ -93,58 +90,67 @@ export default function LoginPage() {
             <p className="text-gray-500 mt-1 text-sm">Enter your credentials to continue</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Email */}
+          <form onSubmit={handleSubmit(onSubmit)} method="post" className="space-y-5" noValidate>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">
                 Email address
               </label>
               <input
+                id="email"
                 type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
                 placeholder="you@hospital.com"
+                {...register("email")}
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-white
-                           placeholder:text-gray-400 transition-all
-                           focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                           placeholder:text-gray-400 transition-all outline-none
+                           focus:border-blue-400 focus:ring-2 focus:ring-blue-100
+                           aria-invalid:border-red-400 aria-invalid:ring-red-100"
+                aria-invalid={!!errors.email}
               />
+              {errors.email && (
+                <p className="mt-1.5 text-xs text-red-600">{errors.email.message}</p>
+              )}
             </div>
 
-            {/* Password */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1.5">
                 Password
               </label>
               <div className="relative">
                 <input
-                  type={showPass ? "text" : "password"}
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
                   placeholder="••••••••"
+                  {...register("password")}
                   className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-white
-                             placeholder:text-gray-400 pr-11 transition-all
-                             focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                             placeholder:text-gray-400 pr-11 transition-all outline-none
+                             focus:border-blue-400 focus:ring-2 focus:ring-blue-100
+                             aria-invalid:border-red-400"
+                  aria-invalid={!!errors.password}
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPass((p) => !p)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition"
+                  onClick={() => setShowPassword((p) => !p)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
-                  {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+              {errors.password && (
+                <p className="mt-1.5 text-xs text-red-600">{errors.password.message}</p>
+              )}
             </div>
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={isSubmitting}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed
                          text-white font-semibold py-2.5 rounded-xl text-sm transition-colors
                          flex items-center justify-center gap-2 mt-2"
             >
-              {loading ? (
+              {isSubmitting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Signing in…
@@ -156,7 +162,7 @@ export default function LoginPage() {
           </form>
 
           <p className="text-center text-xs text-gray-400 mt-8">
-            Hospital Appointment Booking &amp; Channeling Management System · v1.0
+            MediCore HMS · Hospital Appointment &amp; Channeling Management
           </p>
         </div>
       </div>

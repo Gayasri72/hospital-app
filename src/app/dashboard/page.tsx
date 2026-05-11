@@ -1,259 +1,191 @@
 "use client";
-import { useState, useEffect } from "react";
-import { useRequireAuth } from "@/hooks/useAuth";
-import api from "@/lib/api";
-import { cn } from "@/lib/utils";
+
+import { useQuery } from "@tanstack/react-query";
 import {
-  Users, Stethoscope, Calendar, CreditCard,
-  TrendingUp, TrendingDown, BarChart3, Loader2,
-  Clock, CheckCircle2,
+  CalendarDays,
+  CheckCircle,
+  XCircle,
+  Users,
+  CreditCard,
+  TrendingUp,
+  Clock,
 } from "lucide-react";
-import dayjs from "dayjs";
+import { DashboardShell } from "@/components/layout/DashboardShell";
+import { PageLoader } from "@/components/common/LoadingSpinner";
+import { StatusBadge } from "@/components/common/StatusBadge";
+import { dashboardService } from "@/lib/api/services/dashboard.service";
+import { formatCurrency, formatDate, formatTime } from "@/lib/utils/format";
+import type { HospitalDashboard, DoctorDashboard } from "@/types";
 
-import { BarChart, DonutChart } from "@/components/ui/Charts";
-
-// ─── Stat Card ────────────────────────────────────────────
-function StatCard({ icon, label, value, sub, trend, color }: {
-  icon: React.ReactNode; label: string; value: string | number;
-  sub?: string; trend?: number; color: string;
+function StatCard({
+  title,
+  value,
+  icon: Icon,
+  color,
+}: {
+  title: string;
+  value: string | number;
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5">
-      <div className="flex items-start justify-between mb-3">
-        <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center", color)}>
-          {icon}
+    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm text-gray-500">{title}</p>
+          <p className="mt-1 text-2xl font-bold text-gray-900">{value}</p>
         </div>
-        {trend !== undefined && (
-          <div className={cn("flex items-center gap-0.5 text-xs font-semibold",
-            trend >= 0 ? "text-green-600" : "text-red-500")}>
-            {trend >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
-            {Math.abs(trend)}%
-          </div>
-        )}
+        <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${color}`}>
+          <Icon className="h-6 w-6 text-white" />
+        </div>
       </div>
-      <div className="text-2xl font-bold text-gray-900 mb-0.5">{value}</div>
-      <div className="text-sm text-gray-500">{label}</div>
-      {sub && <div className="text-xs text-gray-400 mt-0.5">{sub}</div>}
     </div>
   );
 }
 
-// ─── Main Page ────────────────────────────────────────────
-interface DashStats {
-  total_patients: number;
-  total_doctors: number;
-  today_appointments: number;
-  today_revenue: number;
-  waiting_patients: number;
-  completed_today: number;
-  monthly_appointments: { label: string; value: number }[];
-  monthly_revenue: { label: string; value: number }[];
-  appointment_status: { label: string; value: number; color: string }[];
-  top_doctors: { name: string; count: number; specialization: string }[];
-}
-
-export default function DashboardPage() {
-  const { user, isLoading: authLoading } = useRequireAuth(["Super Admin", "Hospital Admin", "Receptionist", "Doctor", "Accountant"]);
-  const [stats, setStats] = useState<DashStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"dashboard" | "appointments" | "financial">("dashboard");
-
-  useEffect(() => {
-    if (!user) return;
-    Promise.all([
-      api.get("reports/dashboard/").catch(() => null),
-      api.get("reports/appointments/").catch(() => null),
-      api.get("reports/financial/").catch(() => null),
-    ]).then(([dash]) => {
-      if (dash?.data?.data) {
-        setStats(dash.data.data);
-      } else {
-        // Mock data when API not ready
-        const months = ["Nov", "Dec", "Jan", "Feb", "Mar", "Apr"];
-        setStats({
-          total_patients:      124,
-          total_doctors:       18,
-          today_appointments:  32,
-          today_revenue:       64500,
-          waiting_patients:    8,
-          completed_today:     19,
-          monthly_appointments: months.map((m, i) => ({ label: m, value: [45, 62, 58, 71, 83, 32][i] })),
-          monthly_revenue:     months.map((m, i) => ({ label: m, value: [112000, 143000, 128000, 165000, 182000, 64500][i] })),
-          appointment_status: [
-            { label: "Completed", value: 19, color: "#10b981" },
-            { label: "Booked",    value: 8,  color: "#3b82f6" },
-            { label: "Arrived",   value: 3,  color: "#f59e0b" },
-            { label: "Cancelled", value: 2,  color: "#ef4444" },
-          ],
-          top_doctors: [
-            { name: "Dr. Amara Silva",  specialization: "Cardiology",    count: 12 },
-            { name: "Dr. Ruwan Perera", specialization: "Neurology",     count: 9  },
-            { name: "Dr. Nimal Herath", specialization: "Orthopedics",   count: 7  },
-            { name: "Dr. Chamila Raj",  specialization: "Dermatology",   count: 4  },
-          ],
-        });
-      }
-    }).finally(() => setLoading(false));
-  }, [user]);
-
-  if (authLoading) return null;
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
-      </div>
-    );
-  }
-
-  const s = stats!;
-
+function HospitalDashboardView({ data }: { data: HospitalDashboard }) {
   return (
-    <div className="animate-fade-in">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-500 text-sm mt-1">{dayjs().format("dddd, MMMM D YYYY")} · Welcome back, {user?.name}</p>
+    <div className="space-y-6">
+      {/* Today's stats */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <StatCard title="Today's Appointments" value={data.today.total_appointments} icon={CalendarDays} color="bg-blue-500" />
+        <StatCard title="Waiting" value={data.today.waiting} icon={Clock} color="bg-amber-500" />
+        <StatCard title="In Clinic" value={data.today.in_clinic} icon={Users} color="bg-indigo-500" />
+        <StatCard title="Completed" value={data.today.completed} icon={CheckCircle} color="bg-green-500" />
+        <StatCard title="Cancelled" value={data.today.cancelled} icon={XCircle} color="bg-red-500" />
+        <StatCard title="Today's Revenue" value={formatCurrency(data.today.revenue_collected)} icon={TrendingUp} color="bg-emerald-500" />
+      </div>
+
+      {/* This month stats */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <p className="text-sm text-gray-500">Month Total</p>
+          <p className="mt-1 text-2xl font-bold text-gray-900">{data.this_month.total_appointments}</p>
+          <p className="text-xs text-gray-400 mt-1">appointments</p>
         </div>
-        <div className="flex bg-gray-100 rounded-xl p-1">
-          {(["dashboard", "appointments", "financial"] as const).map((t) => (
-            <button key={t} onClick={() => setTab(t)}
-              className={cn("px-4 py-1.5 rounded-lg text-sm font-medium transition-all capitalize",
-                tab === t ? "bg-white text-gray-900 shadow-sm"
-                          : "text-gray-500 hover:text-gray-700")}>
-              {t}
-            </button>
-          ))}
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <p className="text-sm text-gray-500">New Patients</p>
+          <p className="mt-1 text-2xl font-bold text-gray-900">{data.this_month.new_patients}</p>
+          <p className="text-xs text-gray-400 mt-1">this month</p>
+        </div>
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <p className="text-sm text-gray-500">Month Revenue</p>
+          <p className="mt-1 text-2xl font-bold text-gray-900">{formatCurrency(data.this_month.revenue_collected)}</p>
+          <p className="text-xs text-red-500 mt-1">Pending: {formatCurrency(data.this_month.revenue_pending)}</p>
+        </div>
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <p className="text-sm text-gray-500">Cancellation Rate</p>
+          <p className="mt-1 text-2xl font-bold text-gray-900">{Number(data.this_month.cancellation_rate).toFixed(1)}%</p>
+          <p className="text-xs text-gray-400 mt-1">{data.this_month.completed} completed</p>
         </div>
       </div>
 
-      {/* ── Tab: Dashboard ── */}
-      {tab === "dashboard" && (
-        <div className="space-y-5">
-          {/* Summary cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard icon={<Users className="w-5 h-5 text-blue-600" />}      label="Total Patients"       value={s.total_patients}              color="bg-blue-50"   trend={12} />
-            <StatCard icon={<Stethoscope className="w-5 h-5 text-teal-600" />} label="Active Doctors"        value={s.total_doctors}               color="bg-teal-50"   />
-            <StatCard icon={<Calendar className="w-5 h-5 text-purple-600" />}  label="Today's Appointments"  value={s.today_appointments}          color="bg-purple-50" />
-            <StatCard icon={<CreditCard className="w-5 h-5 text-green-600" />} label="Today's Revenue"       value={`Rs ${s.today_revenue.toLocaleString()}`} color="bg-green-50" trend={8} />
+      {/* Recent appointments */}
+      {data.recent_appointments?.length > 0 && (
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+          <div className="border-b border-gray-100 px-5 py-4">
+            <h2 className="text-base font-semibold text-gray-900">Recent Appointments</h2>
           </div>
-
-          {/* Second row */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center gap-4">
-              <div className="w-12 h-12 bg-yellow-50 rounded-xl flex items-center justify-center">
-                <Clock className="w-6 h-6 text-yellow-500" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-gray-900">{s.waiting_patients}</div>
-                <div className="text-sm text-gray-500">Waiting Now</div>
-              </div>
-            </div>
-            <div className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center gap-4">
-              <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center">
-                <CheckCircle2 className="w-6 h-6 text-green-500" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-gray-900">{s.completed_today}</div>
-                <div className="text-sm text-gray-500">Completed Today</div>
-              </div>
-            </div>
-            <div className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center gap-4">
-              <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-blue-500" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-gray-900">
-                  {s.today_appointments > 0 ? Math.round((s.completed_today / s.today_appointments) * 100) : 0}%
-                </div>
-                <div className="text-sm text-gray-500">Completion Rate</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Charts row */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            {/* Monthly appointments */}
-            <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-900">Monthly Appointments</h3>
-                <span className="text-xs text-gray-400">Last 6 months</span>
-              </div>
-              <BarChart data={s.monthly_appointments} color="#3b82f6" />
-            </div>
-            {/* Appointment status donut */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-5">
-              <h3 className="font-semibold text-gray-900 mb-4">Today's Status</h3>
-              <DonutChart segments={s.appointment_status} />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Tab: Appointments ── */}
-      {tab === "appointments" && (
-        <div className="space-y-5">
-          <div className="bg-white rounded-2xl border border-gray-100 p-5">
-            <h3 className="font-semibold text-gray-900 mb-4">Monthly Appointment Trends</h3>
-            <BarChart data={s.monthly_appointments} color="#8b5cf6" />
-          </div>
-
-          {/* Top doctors table */}
-          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100">
-              <h3 className="font-semibold text-gray-900">Top Performing Doctors</h3>
-            </div>
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-50 bg-gray-50/50">
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">#</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Doctor</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Specialization</th>
-                  <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Appointments</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {s.top_doctors.map((doc, i) => (
-                  <tr key={doc.name} className="hover:bg-gray-50/50 transition">
-                    <td className="px-5 py-3.5">
-                      <div className={cn("w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold",
-                        i === 0 ? "bg-yellow-100 text-yellow-700" : i === 1 ? "bg-gray-100 text-gray-600" : i === 2 ? "bg-orange-100 text-orange-700" : "bg-gray-50 text-gray-500")}>
-                        {i + 1}
-                      </div>
-                    </td>
-                    <td className="px-5 py-3.5 text-sm font-semibold text-gray-900">{doc.name}</td>
-                    <td className="px-5 py-3.5 text-sm text-blue-600">{doc.specialization}</td>
-                    <td className="px-5 py-3.5 text-right">
-                      <span className="text-sm font-bold text-gray-900">{doc.count}</span>
-                    </td>
+          <div className="p-5">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    <th className="pb-3 pr-4">#</th>
+                    <th className="pb-3 pr-4">Patient</th>
+                    <th className="pb-3 pr-4">Doctor</th>
+                    <th className="pb-3 pr-4">Date</th>
+                    <th className="pb-3 pr-4">Status</th>
+                    <th className="pb-3">Fee</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {data.recent_appointments.map((appt) => (
+                    <tr key={appt.appointment_id} className="hover:bg-gray-50">
+                      <td className="py-3 pr-4 font-mono text-xs text-gray-500">{appt.queue_number}</td>
+                      <td className="py-3 pr-4 font-medium text-gray-900">{appt.patient_name || "—"}</td>
+                      <td className="py-3 pr-4 text-gray-600">{appt.doctor_name ? `Dr. ${appt.doctor_name}` : "—"}</td>
+                      <td className="py-3 pr-4 text-gray-600">{formatDate(appt.session_date)}</td>
+                      <td className="py-3 pr-4"><StatusBadge status={appt.status} /></td>
+                      <td className="py-3 font-medium text-gray-900">{formatCurrency(appt.total_fee)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
 
-      {/* ── Tab: Financial ── */}
-      {tab === "financial" && (
-        <div className="space-y-5">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <StatCard icon={<CreditCard className="w-5 h-5 text-green-600" />} label="Today's Revenue"    value={`Rs ${s.today_revenue.toLocaleString()}`}     color="bg-green-50"  trend={8} />
-            <StatCard icon={<TrendingUp className="w-5 h-5 text-blue-600" />}  label="This Month"         value={`Rs ${(s.monthly_revenue.at(-1)?.value ?? 0).toLocaleString()}`} color="bg-blue-50" />
-            <StatCard icon={<BarChart3 className="w-5 h-5 text-purple-600" />} label="Avg per Appointment"value={`Rs ${s.today_appointments > 0 ? Math.round(s.today_revenue / s.today_appointments).toLocaleString() : 0}`} color="bg-purple-50" />
+      {/* Active sessions */}
+      {data.active_sessions_today?.length > 0 && (
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+          <div className="border-b border-gray-100 px-5 py-4">
+            <h2 className="text-base font-semibold text-gray-900">Active Sessions Today</h2>
           </div>
-
-          <div className="bg-white rounded-2xl border border-gray-100 p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-900">Monthly Revenue (Rs)</h3>
-              <span className="text-xs text-gray-400">Last 6 months</span>
+          <div className="p-5">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {data.active_sessions_today.map((session) => (
+                <div key={session.session_id} className="rounded-lg border border-gray-100 p-3">
+                  <p className="font-medium text-gray-900">Dr. {session.doctor_name}</p>
+                  <p className="text-xs text-gray-500">{session.specialization}</p>
+                  <p className="text-xs text-gray-400 mt-1">{session.branch_name}</p>
+                  <div className="mt-2 flex items-center justify-between">
+                    <span className="text-xs text-gray-600">{formatTime(session.start_time)} — {formatTime(session.end_time)}</span>
+                    <span className="text-xs font-medium text-blue-600">{session.booked_count}/{session.max_patients}</span>
+                  </div>
+                </div>
+              ))}
             </div>
-            <BarChart data={s.monthly_revenue.map((d) => ({ ...d, value: Math.round(d.value / 1000) }))} color="#10b981" />
-            <p className="text-xs text-gray-400 mt-2 text-center">Values in thousands (Rs K)</p>
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+function DoctorDashboardView({ data }: { data: DoctorDashboard }) {
+  if (data.missing_profile) {
+    return (
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-center">
+        <p className="text-amber-800 font-medium">Doctor profile not configured yet.</p>
+        <p className="text-amber-600 text-sm mt-1">Please contact your administrator to set up your doctor profile.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard title="Today's Appointments" value={data.personal_stats.appointments_today} icon={CalendarDays} color="bg-blue-500" />
+        <StatCard title="Pending" value={data.personal_stats.pending_appointments} icon={Clock} color="bg-amber-500" />
+        <StatCard title="Completed" value={data.personal_stats.completed_appointments} icon={CheckCircle} color="bg-green-500" />
+      </div>
+    </div>
+  );
+}
+
+export default function DashboardPage() {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["dashboard"],
+    queryFn: dashboardService.get,
+    retry: false,
+  });
+
+  return (
+    <DashboardShell title="Dashboard">
+      {isLoading ? (
+        <PageLoader />
+      ) : error || !data ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
+          <p className="text-red-700 font-medium">Failed to load dashboard data.</p>
+          <p className="text-red-500 text-sm mt-1">Please check your connection and try again.</p>
+        </div>
+      ) : "today" in data ? (
+        <HospitalDashboardView data={data as HospitalDashboard} />
+      ) : (
+        <DoctorDashboardView data={data as DoctorDashboard} />
+      )}
+    </DashboardShell>
   );
 }
