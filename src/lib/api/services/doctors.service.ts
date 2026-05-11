@@ -6,8 +6,10 @@ import type {
   Doctor,
   DoctorFee,
   DoctorQueryParams,
+  HospitalCharge,
   PaginatedResult,
   SetDoctorFeeRequest,
+  SetHospitalChargeRequest,
   UpdateDoctorRequest,
 } from "@/types";
 
@@ -44,4 +46,10 @@ export const doctorsService = {
 
   getFeeHistory: (id: string) =>
     apiClient.get<ApiSuccess<DoctorFee[]>>(`/doctors/${id}/fees`).then((r) => r.data.data),
+
+  getHospitalCharge: () =>
+    apiClient.get<ApiSuccess<HospitalCharge | null>>("/hospital/charges/current").then((r) => r.data.data),
+
+  setHospitalCharge: (body: SetHospitalChargeRequest) =>
+    apiClient.post<ApiSuccess<HospitalCharge>>("/hospital/charges", body).then((r) => r.data.data),
 };

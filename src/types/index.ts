@@ -214,6 +214,19 @@ export interface DoctorFee {
   created_at: string;
 }
 
+export interface HospitalCharge {
+  charge_id: string;
+  hospital_id: string;
+  charge_amount: string;
+  effective_from: string;
+  created_at: string;
+}
+
+export interface SetHospitalChargeRequest {
+  charge_amount: number;
+  effective_from?: string;
+}
+
 export interface CreateDoctorRequest {
   name: string;
   specialization: string;
