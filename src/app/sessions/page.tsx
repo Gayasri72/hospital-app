@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -32,52 +32,69 @@ const STATUS_CHANGE_OPTIONS = ["open", "closed", "cancelled"] as const;
 const HOURS = Array.from({ length: 12 }, (_, i) => String(i + 1));
 const MINUTES = ["00", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55"];
 
+function parse24h(v: string): { h: string; m: string; period: "AM" | "PM" } {
+  if (!v) return { h: "8", m: "00", period: "AM" };
+  const [hStr, mStr] = v.split(":");
+  const h24 = parseInt(hStr, 10);
+  const period: "AM" | "PM" = h24 >= 12 ? "PM" : "AM";
+  const h12 = h24 === 0 ? 12 : h24 > 12 ? h24 - 12 : h24;
+  return { h: String(h12), m: mStr ?? "00", period };
+}
+
+function to24h(h: string, m: string, period: "AM" | "PM"): string {
+  let h24 = parseInt(h, 10);
+  if (period === "AM" && h24 === 12) h24 = 0;
+  if (period === "PM" && h24 !== 12) h24 += 12;
+  return `${String(h24).padStart(2, "0")}:${m}`;
+}
+
 function TimePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  // Parse "HH:MM" 24h → internal state
-  const toState = (v: string) => {
-    if (!v) return { h: "8", m: "00", period: "AM" };
-    const [hStr, mStr] = v.split(":");
-    const h24 = parseInt(hStr, 10);
-    const period = h24 >= 12 ? "PM" : "AM";
-    const h12 = h24 === 0 ? 12 : h24 > 12 ? h24 - 12 : h24;
-    return { h: String(h12), m: mStr ?? "00", period };
-  };
+  const [h, setH] = useState(() => parse24h(value).h);
+  const [m, setM] = useState(() => parse24h(value).m);
+  const [period, setPeriod] = useState<"AM" | "PM">(() => parse24h(value).period);
 
-  // Convert back to "HH:MM" 24h string
-  const to24h = (h: string, m: string, period: string) => {
-    let h24 = parseInt(h, 10);
-    if (period === "AM" && h24 === 12) h24 = 0;
-    if (period === "PM" && h24 !== 12) h24 += 12;
-    return `${String(h24).padStart(2, "0")}:${m}`;
-  };
+  // Sync local state when value resets externally (e.g. form reset)
+  useEffect(() => {
+    const parsed = parse24h(value);
+    setH(parsed.h);
+    setM(parsed.m);
+    setPeriod(parsed.period);
+  }, [value]);
 
-  const { h, m, period } = toState(value);
-
-  const update = (newH: string, newM: string, newPeriod: string) =>
+  const commit = (newH: string, newM: string, newPeriod: "AM" | "PM") => {
     onChange(to24h(newH, newM, newPeriod));
+  };
 
   const selectClass =
     "rounded-md border border-input bg-background px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
 
   return (
     <div className="flex items-center gap-1.5 mt-1">
-      <select value={h} onChange={(e) => update(e.target.value, m, period)} className={`${selectClass} w-16`}>
+      <select
+        value={h}
+        onChange={(e) => { setH(e.target.value); commit(e.target.value, m, period); }}
+        className={`${selectClass} w-16`}
+      >
         {HOURS.map((hr) => <option key={hr} value={hr}>{hr}</option>)}
       </select>
-      <span className="text-gray-400 font-medium">:</span>
-      <select value={m} onChange={(e) => update(h, e.target.value, period)} className={`${selectClass} w-16`}>
+      <span className="text-gray-400 font-medium select-none">:</span>
+      <select
+        value={m}
+        onChange={(e) => { setM(e.target.value); commit(h, e.target.value, period); }}
+        className={`${selectClass} w-16`}
+      >
         {MINUTES.map((mn) => <option key={mn} value={mn}>{mn}</option>)}
       </select>
-      <div className="flex rounded-md border border-input overflow-hidden">
+      <div className="flex rounded-md border border-input overflow-hidden shrink-0">
         {(["AM", "PM"] as const).map((p) => (
           <button
             key={p}
             type="button"
-            onClick={() => update(h, m, p)}
-            className={`px-3 py-2 text-xs font-medium transition-colors ${
+            onClick={() => { setPeriod(p); commit(h, m, p); }}
+            className={`px-3 py-2 text-xs font-semibold transition-colors ${
               period === p
                 ? "bg-blue-600 text-white"
-                : "bg-background text-gray-500 hover:bg-gray-50"
+                : "bg-white text-gray-500 hover:bg-gray-50"
             }`}
           >
             {p}
