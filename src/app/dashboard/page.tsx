@@ -149,18 +149,83 @@ function DoctorDashboardView({ data }: { data: DoctorDashboard }) {
     return (
       <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-center">
         <p className="text-amber-800 font-medium">Doctor profile not configured yet.</p>
-        <p className="text-amber-600 text-sm mt-1">Please contact your administrator to set up your doctor profile.</p>
+        <p className="text-amber-600 text-sm mt-1">Please contact your administrator to link your doctor profile.</p>
       </div>
     );
   }
 
+  const today = data.personal_stats.today;
+  const month = data.personal_stats.this_month;
+
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard title="Today's Appointments" value={data.personal_stats.appointments_today} icon={CalendarDays} color="bg-blue-500" />
-        <StatCard title="Pending" value={data.personal_stats.pending_appointments} icon={Clock} color="bg-amber-500" />
-        <StatCard title="Completed" value={data.personal_stats.completed_appointments} icon={CheckCircle} color="bg-green-500" />
+      {/* Next patient */}
+      {data.next_appointment && (
+        <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-blue-500">Next Patient</p>
+            <p className="mt-0.5 text-base font-bold text-gray-900">{data.next_appointment.patient_name}</p>
+            <p className="text-xs text-gray-500">
+              Queue #{data.next_appointment.queue_display}
+              {data.next_appointment.patient_age ? ` · ${data.next_appointment.patient_age} yrs` : ""}
+              {data.next_appointment.patient_gender ? ` · ${data.next_appointment.patient_gender}` : ""}
+            </p>
+          </div>
+          <StatusBadge status={data.next_appointment.status as never} />
+        </div>
+      )}
+
+      {/* Today's stats */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+        <StatCard title="Today Total" value={today.total_appointments} icon={CalendarDays} color="bg-blue-500" />
+        <StatCard title="Waiting" value={today.waiting} icon={Clock} color="bg-amber-500" />
+        <StatCard title="In Clinic" value={today.in_clinic} icon={Users} color="bg-indigo-500" />
+        <StatCard title="Completed" value={today.completed} icon={CheckCircle} color="bg-green-500" />
+        <StatCard title="No Show" value={today.no_show} icon={XCircle} color="bg-red-400" />
       </div>
+
+      {/* This month */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <p className="text-sm text-gray-500">Month Appointments</p>
+          <p className="mt-1 text-2xl font-bold text-gray-900">{month.total_appointments}</p>
+        </div>
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <p className="text-sm text-gray-500">Completed</p>
+          <p className="mt-1 text-2xl font-bold text-gray-900">{month.completed}</p>
+        </div>
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <p className="text-sm text-gray-500">Completion Rate</p>
+          <p className="mt-1 text-2xl font-bold text-gray-900">{Number(month.completion_rate).toFixed(1)}%</p>
+        </div>
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <p className="text-sm text-gray-500">Medical Records</p>
+          <p className="mt-1 text-2xl font-bold text-gray-900">{month.medical_records_written}</p>
+        </div>
+      </div>
+
+      {/* Today's sessions */}
+      {data.my_sessions_today.length > 0 && (
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+          <div className="border-b border-gray-100 px-5 py-4">
+            <h2 className="text-base font-semibold text-gray-900">My Sessions Today</h2>
+          </div>
+          <div className="p-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {data.my_sessions_today.map((s) => (
+              <div key={s.session_id} className="rounded-lg border border-gray-100 p-3">
+                <p className="text-xs font-medium text-gray-500">{s.branch_name}</p>
+                <p className="mt-1 text-sm font-semibold text-gray-800">
+                  {formatTime(s.start_time)} — {formatTime(s.end_time)}
+                </p>
+                <div className="mt-2 flex items-center justify-between">
+                  <span className="text-xs text-gray-500">{s.booked_count} / {s.max_patients} booked</span>
+                  <StatusBadge status={s.status as never} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

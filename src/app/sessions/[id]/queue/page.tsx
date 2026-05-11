@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
@@ -12,11 +13,22 @@ import { sessionsService } from "@/lib/api/services/sessions.service";
 import { appointmentsService } from "@/lib/api/services/appointments.service";
 import { getErrorMessage } from "@/lib/utils/errors";
 import { formatTime } from "@/lib/utils/format";
+import { usePermissions } from "@/hooks/usePermissions";
+import { CAN_COMPLETE_APPOINTMENTS, ROLES } from "@/config/roles";
+import { useAuthStore } from "@/store/auth.store";
 import type { AppointmentStatus } from "@/types";
 
-const NEXT_STATUS: Partial<Record<AppointmentStatus, AppointmentStatus>> = {
+// Doctors check patients in/out of the consultation room — they cannot mark
+// "arrived" because that is a physical front-desk check-in by the receptionist.
+const NEXT_STATUS_DEFAULT: Partial<Record<AppointmentStatus, AppointmentStatus>> = {
   booked: "confirmed",
   confirmed: "arrived",
+  arrived: "completed",
+};
+
+const NEXT_STATUS_DOCTOR: Partial<Record<AppointmentStatus, AppointmentStatus>> = {
+  booked: "confirmed",
+  // confirmed → arrived is intentionally omitted: receptionist's job
   arrived: "completed",
 };
 
@@ -24,6 +36,13 @@ export default function SessionQueuePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const qc = useQueryClient();
+  const { can } = usePermissions();
+  const canAct = can(CAN_COMPLETE_APPOINTMENTS);
+  const user = useAuthStore((s) => s.user);
+  const nextStatusMap = user?.role === ROLES.DOCTOR ? NEXT_STATUS_DOCTOR : NEXT_STATUS_DEFAULT;
+
+  // Track which specific appointment is being updated to avoid disabling all buttons
+  const [pendingApptId, setPendingApptId] = useState<string | null>(null);
 
   const { data: session, isLoading: sessionLoading } = useQuery({
     queryKey: ["sessions", id],
@@ -39,8 +58,15 @@ export default function SessionQueuePage() {
   const updateStatusMutation = useMutation({
     mutationFn: ({ apptId, status }: { apptId: string; status: AppointmentStatus }) =>
       appointmentsService.updateStatus(apptId, { status }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["appointments", { session_id: id }] }); },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onMutate: ({ apptId }) => setPendingApptId(apptId),
+    onSuccess: () => {
+      setPendingApptId(null);
+      qc.invalidateQueries({ queryKey: ["appointments", { session_id: id }] });
+    },
+    onError: (err) => {
+      setPendingApptId(null);
+      toast.error(getErrorMessage(err));
+    },
   });
 
   return (
@@ -82,30 +108,35 @@ export default function SessionQueuePage() {
                 <th className="px-4 py-3">Queue #</th>
                 <th className="px-4 py-3">Patient</th>
                 <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-right">Action</th>
+                {canAct && <th className="px-4 py-3 text-right">Action</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {appointments.data
                 .sort((a, b) => a.queue_number - b.queue_number)
                 .map((appt, index) => {
-                  const next = NEXT_STATUS[appt.status];
+                  const next = nextStatusMap[appt.status];
+                  const isPending = pendingApptId === appt.appointment_id;
                   return (
-                    <tr key={appt.appointment_id || `row-${index}`} className={appt.status === "arrived" ? "bg-amber-50" : "hover:bg-gray-50"}>
+                    <tr key={appt.appointment_id || `row-${index}`}
+                      className={appt.status === "arrived" ? "bg-amber-50" : "hover:bg-gray-50"}>
                       <td className="px-4 py-3 text-xl font-bold text-gray-800">{appt.queue_number}</td>
                       <td className="px-4 py-3 font-medium text-gray-900">
                         {appt.patient?.name ?? "—"}
                       </td>
                       <td className="px-4 py-3"><StatusBadge status={appt.status} /></td>
-                      <td className="px-4 py-3 text-right">
-                        {next && (
-                          <Button size="sm" variant={appt.status === "arrived" ? "default" : "outline"}
-                            disabled={updateStatusMutation.isPending}
-                            onClick={() => updateStatusMutation.mutate({ apptId: appt.appointment_id, status: next })}>
-                            Mark {next}
-                          </Button>
-                        )}
-                      </td>
+                      {canAct && (
+                        <td className="px-4 py-3 text-right">
+                          {next && (
+                            <Button size="sm"
+                              variant={appt.status === "arrived" ? "default" : "outline"}
+                              disabled={isPending}
+                              onClick={() => updateStatusMutation.mutate({ apptId: appt.appointment_id, status: next })}>
+                              {isPending ? "…" : `Mark ${next}`}
+                            </Button>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   );
                 })}

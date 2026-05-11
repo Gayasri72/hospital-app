@@ -22,7 +22,8 @@ import { getErrorMessage, getApiErrorCode } from "@/lib/utils/errors";
 import { formatCurrency, formatDate, formatTime } from "@/lib/utils/format";
 import { createAppointmentSchema, paymentTransactionSchema, type CreateAppointmentFormValues, type PaymentTransactionFormValues } from "@/lib/validators/appointment.schema";
 import { usePermissions } from "@/hooks/usePermissions";
-import { CAN_BOOK_APPOINTMENTS, CAN_PROCESS_PAYMENTS } from "@/config/roles";
+import { CAN_BOOK_APPOINTMENTS, CAN_PROCESS_PAYMENTS, ROLES } from "@/config/roles";
+import { useAuthStore } from "@/store/auth.store";
 import type { Appointment, AppointmentStatus, Payment } from "@/types";
 
 // Backend initial status is "booked"; status changes: confirmed → arrived → completed
@@ -138,6 +139,8 @@ function PaymentModal({ open, onOpenChange, payment }: { open: boolean; onOpenCh
     mutationFn: (data: PaymentTransactionFormValues) => paymentsService.addTransaction(payment!.payment_id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["appointments"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["payments"] });
       toast.success("Payment recorded");
       onOpenChange(false);
       reset();
@@ -193,6 +196,10 @@ export default function AppointmentsPage() {
   const { can } = usePermissions();
   const canBook = can(CAN_BOOK_APPOINTMENTS);
   const canPay = can(CAN_PROCESS_PAYMENTS);
+  const user = useAuthStore((s) => s.user);
+  const isDoctor = user?.role === ROLES.DOCTOR;
+  // Doctors only see appointments for their own doctor profile
+  const doctorIdFilter = isDoctor ? user?.doctor_id : undefined;
 
   const qc = useQueryClient();
   const [filterDate, setFilterDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -200,12 +207,14 @@ export default function AppointmentsPage() {
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
   const [paymentModal, setPaymentModal] = useState<{ open: boolean; payment?: Payment }>({ open: false });
+  const [pendingPayId, setPendingPayId] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["appointments", { date: filterDate, status: filterStatus, page }],
+    queryKey: ["appointments", { date: filterDate, status: filterStatus, page, doctor_id: doctorIdFilter }],
     queryFn: () => appointmentsService.list({
       date: filterDate,
       status: filterStatus || undefined,
+      doctor_id: doctorIdFilter,
       page,
       limit: 20,
     }),
@@ -220,11 +229,25 @@ export default function AppointmentsPage() {
 
   const createPaymentMutation = useMutation({
     mutationFn: (appointmentId: string) => paymentsService.create({ appointment_id: appointmentId }),
+    onMutate: (appointmentId) => setPendingPayId(appointmentId),
     onSuccess: (payment) => {
+      setPendingPayId(null);
       qc.invalidateQueries({ queryKey: ["appointments"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["payments"] });
       setPaymentModal({ open: true, payment });
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => {
+      setPendingPayId(null);
+      // Payment already exists in DB but UI is stale — re-fetch so the row
+      // switches from "No payment" to showing the existing payment + Pay button.
+      if (getApiErrorCode(err) === "PAYMENT_ALREADY_EXISTS") {
+        qc.invalidateQueries({ queryKey: ["appointments"] });
+        toast.error("Payment record already exists — refreshing.");
+      } else {
+        toast.error(getErrorMessage(err));
+      }
+    },
   });
 
   const STATUSES: Array<AppointmentStatus | ""> = ["", "booked", "confirmed", "arrived", "completed", "cancelled", "no_show"];
@@ -273,7 +296,8 @@ export default function AppointmentsPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {data.data.map((appt, index) => {
-                    const nextStatuses = ALLOWED_STATUS_TRANSITIONS[appt.status] ?? [];
+                    const nextStatuses = (ALLOWED_STATUS_TRANSITIONS[appt.status] ?? [])
+                      .filter((s) => !(isDoctor && s === "arrived"));
                     const balance = appt.payment
                       ? parseFloat(appt.payment.total_amount) - parseFloat(appt.payment.amount_paid)
                       : 0;
@@ -306,9 +330,9 @@ export default function AppointmentsPage() {
                           <div className="flex items-center justify-end gap-2">
                             {canPay && appt.status === "completed" && !appt.payment && (
                               <Button variant="default" size="sm"
-                                disabled={createPaymentMutation.isPending}
+                                disabled={pendingPayId === appt.appointment_id}
                                 onClick={() => createPaymentMutation.mutate(appt.appointment_id)}>
-                                Pay
+                                {pendingPayId === appt.appointment_id ? "…" : "Pay"}
                               </Button>
                             )}
                             {canPay && appt.payment && balance > 0 && (

@@ -522,12 +522,38 @@ export interface RecentAppointment {
 export interface DoctorDashboard {
   generated_at: string;
   personal_stats: {
-    appointments_today: number;
-    pending_appointments: number;
-    completed_appointments: number;
+    today: {
+      total_appointments: number;
+      waiting: number;
+      in_clinic: number;
+      completed: number;
+      no_show: number;
+    };
+    this_month: {
+      total_appointments: number;
+      completed: number;
+      completion_rate: number;
+      medical_records_written: number;
+    };
   };
-  my_sessions_today: unknown[];
-  next_appointment: unknown | null;
+  my_sessions_today: Array<{
+    session_id: string;
+    branch_name: string;
+    start_time: string;
+    end_time: string;
+    max_patients: number;
+    booked_count: number;
+    status: string;
+  }>;
+  next_appointment: {
+    appointment_id: string;
+    queue_display: number;
+    slot_time: string | null;
+    patient_name: string;
+    patient_age: number | null;
+    patient_gender: string | null;
+    status: string;
+  } | null;
   missing_profile?: boolean;
 }
 
